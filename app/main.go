@@ -2,36 +2,18 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
+
+	"github.com/codecrafters-io/redis-starter-go/app/server"
 )
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	buffer := make([]byte, 1024)
-	for {
-		if _, err := conn.Read(buffer); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from connection %s", err.Error())
-		}
-		if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
-		}
-	}
-}
+
 
 func main() {
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+	r, err := server.New()
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		fmt.Println("Failed to create server")
 		os.Exit(1)
 	}
-	defer l.Close()
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
-		}
-		go handleConnection(conn)
-	}
+	r.Run()
 }
