@@ -8,13 +8,14 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
 	"github.com/codecrafters-io/redis-starter-go/app/parser"
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type redisServer struct {
 	listener        *net.Listener
 	parser          *parser.Parser
 	commandRegistry map[string]command.CommandHandler
-	store           map[string]string
+	store           map[string]utils.Entry
 }
 
 func New() (*redisServer, error) {
@@ -24,7 +25,7 @@ func New() (*redisServer, error) {
 	}
 	p := parser.NewParser()
 	reg := command.NewCommandRegistry()
-	s := make(map[string]string)
+	s := make(map[string]utils.Entry)
 	return &redisServer{
 		listener:        &l,
 		parser:          p,

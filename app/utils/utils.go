@@ -1,6 +1,14 @@
 package utils
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
+
+type Entry struct {
+	Value      string
+	ExpiryTime time.Time
+}
 
 func ToBulkString(s string) []byte {
 	ret := []byte{}

@@ -1,12 +1,14 @@
 package command
 
+import "github.com/codecrafters-io/redis-starter-go/app/utils"
+
 type Command struct {
 	CMD  string
 	ARGS []string
 }
 
 type Context struct {
-	Store map[string]string
+	Store map[string]utils.Entry
 }
 
 type CommandHandler interface {
