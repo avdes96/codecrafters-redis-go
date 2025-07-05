@@ -5,10 +5,15 @@ import (
 	"io"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/redis-starter-go/app/command"
+	"github.com/codecrafters-io/redis-starter-go/app/parser"
 )
 
 type redisServer struct {
-	listener net.Listener
+	listener        *net.Listener
+	parser          *parser.Parser
+	commandRegistry map[string]command.CommandHandler
 }
 
 func New() (*redisServer, error) {
@@ -16,13 +21,19 @@ func New() (*redisServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &redisServer{listener: l}, nil
+	p := parser.NewParser()
+	reg := command.NewCommandRegistry()
+	return &redisServer{
+		listener:        &l,
+		parser:          p,
+		commandRegistry: reg,
+	}, nil
 }
 
 func (r *redisServer) Run() error {
-	defer r.listener.Close()
+	defer (*r.listener).Close()
 	for {
-		conn, err := r.listener.Accept()
+		conn, err := (*r.listener).Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
@@ -35,15 +46,25 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	buffer := make([]byte, 1024)
 	for {
-		_, err := conn.Read(buffer); 
+		n, err := conn.Read(buffer)
 		if err == io.EOF {
 			return
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading from connection %s", err.Error())
+			continue
 		}
-		if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
+
+		userInput := buffer[:n]
+		command, err := r.parser.ParseInputToCommand(userInput)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
+			continue
+		}
+		output := r.commandRegistry[command.CMD].Handle(command.ARGS)
+		if _, err := conn.Write(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
+			continue
 		}
 	}
 }
