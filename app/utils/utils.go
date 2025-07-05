@@ -19,3 +19,11 @@ func appendCrlf(b []byte) []byte {
 	b = append(b, '\n')
 	return b
 }
+
+func OkResp() []byte {
+	return []byte("+OK\r\n")
+}
+
+func NullBulkString() []byte {
+	return []byte("$-1\r\n")
+}

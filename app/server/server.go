@@ -14,6 +14,7 @@ type redisServer struct {
 	listener        *net.Listener
 	parser          *parser.Parser
 	commandRegistry map[string]command.CommandHandler
+	store           map[string]string
 }
 
 func New() (*redisServer, error) {
@@ -23,10 +24,12 @@ func New() (*redisServer, error) {
 	}
 	p := parser.NewParser()
 	reg := command.NewCommandRegistry()
+	s := make(map[string]string)
 	return &redisServer{
 		listener:        &l,
 		parser:          p,
 		commandRegistry: reg,
+		store:           s,
 	}, nil
 }
 
@@ -56,12 +59,12 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 		}
 
 		userInput := buffer[:n]
-		command, err := r.parser.ParseInputToCommand(userInput)
+		cmd, err := r.parser.ParseInputToCommand(userInput)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
 			continue
 		}
-		output := r.commandRegistry[command.CMD].Handle(command.ARGS)
+		output := r.commandRegistry[cmd.CMD].Handle(cmd.ARGS, &command.Context{Store: r.store})
 		if _, err := conn.Write(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
 			continue
