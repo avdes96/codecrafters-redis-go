@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
@@ -28,5 +29,5 @@ func (s *Set) Handle(args []string, ctx *Context) []byte {
 		expTime = time.Now().Add(time.Millisecond * time.Duration(expiryDelta))
 	}
 	ctx.Store[args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
-	return utils.OkResp()
+	return protocol.OkResp()
 }

@@ -1,48 +1,20 @@
 package utils
 
-import (
-	"strconv"
-	"time"
-)
+import "time"
 
 type Entry struct {
 	Value      string
 	ExpiryTime time.Time
 }
 
-func ToArrayBulkStrings(strs []string) []byte {
-	ret := []byte{}
-	ret = append(ret, '*')
-	ret = append(ret, []byte(strconv.Itoa(len(strs)))...)
-	ret = appendCrlf(ret)
-	for _, s := range strs {
-		ret = append(ret, ToBulkString(s)...)
+func SlicesEqual[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	return ret
-}
-
-func ToBulkString(s string) []byte {
-	ret := []byte{}
-	ret = append(ret, '$')
-	ret = append(ret, []byte(strconv.Itoa(len(s)))...)
-	ret = appendCrlf(ret)
-	for _, c := range s {
-		ret = append(ret, byte(c))
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
 	}
-	ret = appendCrlf(ret)
-	return ret
-}
-
-func appendCrlf(b []byte) []byte {
-	b = append(b, '\r')
-	b = append(b, '\n')
-	return b
-}
-
-func OkResp() []byte {
-	return []byte("+OK\r\n")
-}
-
-func NullBulkString() []byte {
-	return []byte("$-1\r\n")
+	return true
 }

@@ -3,7 +3,7 @@ package command
 import (
 	"strings"
 
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 )
 
 type Config struct{}
@@ -21,7 +21,7 @@ func (c *Config) Handle(args []string, ctx *Context) []byte {
 				ret = append(ret, val)
 			}
 		}
-		return utils.ToArrayBulkStrings(ret)
+		return protocol.ToArrayBulkStrings(ret)
 	default:
 		return []byte("Available CONFIG commands: GET")
 	}

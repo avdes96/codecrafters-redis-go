@@ -7,13 +7,13 @@ import (
 	"os"
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
-	"github.com/codecrafters-io/redis-starter-go/app/parser"
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type redisServer struct {
 	listener        *net.Listener
-	parser          *parser.Parser
+	parser          *protocol.Parser
 	commandRegistry map[string]command.CommandHandler
 	store           map[string]utils.Entry
 	configParams    map[string]string
@@ -24,7 +24,7 @@ func New(configParams map[string]string) (*redisServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := parser.NewParser()
+	p := protocol.NewParser()
 	reg := command.NewCommandRegistry()
 	s := make(map[string]utils.Entry)
 	return &redisServer{
@@ -62,7 +62,8 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 		}
 
 		userInput := buffer[:n]
-		cmd, err := r.parser.ParseInputToCommand(userInput)
+		parsedCmd, parsedArgs, err := r.parser.ParseInputToCommandAndArgs(userInput)
+		cmd := command.Command{CMD: parsedCmd, ARGS: parsedArgs}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
 			continue

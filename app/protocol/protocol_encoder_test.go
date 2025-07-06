@@ -1,8 +1,10 @@
-package utils
+package protocol
 
 import (
 	"strconv"
 	"testing"
+
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 func TestToArrayBulkStrings(t *testing.T) {
@@ -15,7 +17,7 @@ func TestToArrayBulkStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		got := ToArrayBulkStrings(tt.input)
-		if !sliceEqual(got, tt.expected) {
+		if !utils.SlicesEqual(got, tt.expected) {
 			t.Errorf("Expected: %s, but got %s", strconv.Quote(string(tt.expected)), strconv.Quote(string(got)))
 		}
 	}
@@ -33,22 +35,9 @@ func TestTBulkString(t *testing.T) {
 
 	for _, tt := range tests {
 		got := ToBulkString(tt.input)
-		if !sliceEqual(got, tt.expected) {
+		if !utils.SlicesEqual(got, tt.expected) {
 			t.Errorf("Expected: %s, but got %s", strconv.Quote(string(tt.expected)), strconv.Quote(string(got)))
 		}
 	}
 
-}
-
-func sliceEqual(a []byte, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

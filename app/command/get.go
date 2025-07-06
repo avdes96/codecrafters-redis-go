@@ -3,7 +3,7 @@ package command
 import (
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 )
 
 type Get struct{}
@@ -14,11 +14,11 @@ func (g *Get) Handle(args []string, ctx *Context) []byte {
 	}
 	entry, ok := ctx.Store[args[0]]
 	if !ok {
-		return utils.NullBulkString()
+		return protocol.NullBulkString()
 	}
 	if !entry.ExpiryTime.IsZero() && entry.ExpiryTime.Before(time.Now()) {
 		delete(ctx.Store, args[0])
-		return utils.NullBulkString()
+		return protocol.NullBulkString()
 	}
-	return utils.ToBulkString(entry.Value)
+	return protocol.ToBulkString(entry.Value)
 }

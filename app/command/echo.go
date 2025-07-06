@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 )
 
 type Echo struct{}
@@ -13,5 +13,5 @@ func (e *Echo) Handle(args []string, ctx *Context) []byte {
 	} else {
 		ret = "Usage: ECHO <message>"
 	}
-	return utils.ToBulkString(ret)
+	return protocol.ToBulkString(ret)
 }

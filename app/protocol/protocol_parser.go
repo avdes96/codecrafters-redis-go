@@ -1,11 +1,9 @@
-package parser
+package protocol
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/codecrafters-io/redis-starter-go/app/command"
 )
 
 type Parser struct{}
@@ -14,22 +12,22 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-func (p *Parser) ParseInputToCommand(b []byte) (command.Command, error) {
+func (p *Parser) ParseInputToCommandAndArgs(b []byte) (string, []string, error) {
 	switch b[0] {
 	case '*':
 		strs, err := p.parseArrayBulkStrings(b)
 		if err != nil {
-			return command.Command{CMD: "", ARGS: []string{}}, err
+			return "", []string{}, err
 		}
-		return command.Command{CMD: strings.ToLower(strs[0]), ARGS: strs[1:]}, nil
+		return strings.ToLower(strs[0]), strs[1:], nil
 	case '+':
 		str, err := p.parseSimpleString(b)
 		if err != nil {
-			return command.Command{CMD: "", ARGS: []string{}}, err
+			return "", []string{}, err
 		}
-		return command.Command{CMD: strings.ToLower(str), ARGS: []string{}}, err
+		return strings.ToLower(str), []string{}, nil
 	default:
-		return command.Command{CMD: "", ARGS: []string{}}, fmt.Errorf("command does not start with valid char: %s", b)
+		return "", []string{}, fmt.Errorf("command does not start with valid char: %s", b)
 	}
 }
 
@@ -63,7 +61,6 @@ func (p *Parser) parseArrayBulkStrings(b []byte) ([]string, error) {
 		arrIdx++
 		i = newIdx
 	}
-	fmt.Println(arr, len(arr))
 	return arr, nil
 }
 
