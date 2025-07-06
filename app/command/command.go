@@ -8,7 +8,8 @@ type Command struct {
 }
 
 type Context struct {
-	Store map[string]utils.Entry
+	Store        map[string]utils.Entry
+	ConfigParams map[string]string
 }
 
 type CommandHandler interface {
@@ -21,6 +22,7 @@ func NewCommandRegistry() map[string]CommandHandler {
 	m["echo"] = &Echo{}
 	m["set"] = &Set{}
 	m["get"] = &Get{}
+	m["config"] = &Config{}
 
 	return m
 }

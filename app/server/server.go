@@ -16,9 +16,10 @@ type redisServer struct {
 	parser          *parser.Parser
 	commandRegistry map[string]command.CommandHandler
 	store           map[string]utils.Entry
+	configParams    map[string]string
 }
 
-func New() (*redisServer, error) {
+func New(configParams map[string]string) (*redisServer, error) {
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
 		return nil, err
@@ -31,6 +32,7 @@ func New() (*redisServer, error) {
 		parser:          p,
 		commandRegistry: reg,
 		store:           s,
+		configParams:    configParams,
 	}, nil
 }
 
@@ -65,7 +67,10 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
 			continue
 		}
-		output := r.commandRegistry[cmd.CMD].Handle(cmd.ARGS, &command.Context{Store: r.store})
+		output := r.commandRegistry[cmd.CMD].Handle(
+			cmd.ARGS,
+			&command.Context{Store: r.store, ConfigParams: r.configParams},
+		)
 		if _, err := conn.Write(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
 			continue

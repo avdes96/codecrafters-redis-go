@@ -10,6 +10,17 @@ type Entry struct {
 	ExpiryTime time.Time
 }
 
+func ToArrayBulkStrings(strs []string) []byte {
+	ret := []byte{}
+	ret = append(ret, '*')
+	ret = append(ret, []byte(strconv.Itoa(len(strs)))...)
+	ret = appendCrlf(ret)
+	for _, s := range strs {
+		ret = append(ret, ToBulkString(s)...)
+	}
+	return ret
+}
+
 func ToBulkString(s string) []byte {
 	ret := []byte{}
 	ret = append(ret, '$')
