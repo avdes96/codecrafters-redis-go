@@ -28,6 +28,9 @@ func (s *Set) Handle(args []string, ctx *Context) []byte {
 		}
 		expTime = time.Now().Add(time.Millisecond * time.Duration(expiryDelta))
 	}
-	ctx.Store[args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
+	if _, ok := ctx.Store[ctx.currentDatabase]; !ok {
+		ctx.Store[ctx.currentDatabase] = make(map[string]utils.Entry)
+	}
+	ctx.Store[ctx.currentDatabase][args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
 	return protocol.OkResp()
 }

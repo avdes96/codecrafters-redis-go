@@ -14,7 +14,7 @@ import (
 type Rdb struct {
 	header   RdbHeader
 	metadata map[string]string
-	database map[int]map[string]utils.Entry
+	Database map[int]map[string]utils.Entry
 	checksum string
 }
 
@@ -69,7 +69,7 @@ func newRdbFromReader(reader *bufio.Reader) (*Rdb, error) {
 	return &Rdb{
 		header:   *header,
 		metadata: metadata,
-		database: database,
+		Database: database,
 		checksum: checksum,
 	}, nil
 }

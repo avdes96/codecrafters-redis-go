@@ -25,7 +25,7 @@ func TestFileParser(t *testing.T) {
 	expected := Rdb{
 		header:   RdbHeader{magic: "REDIS", version: "0011"},
 		metadata: map[string]string{"redis-ver": "6.0.16"},
-		database: expectedDatabase,
+		Database: expectedDatabase,
 		checksum: "ChEcKsUm",
 	}
 
@@ -50,7 +50,7 @@ func TestFileParser(t *testing.T) {
 			t.Errorf("Expected %s for %s, got %s", key, value, gotVal)
 		}
 	}
-	if same, err := databasesEqual(expected.database, got.database); !same {
+	if same, err := databasesEqual(expected.Database, got.Database); !same {
 		t.Error(err.Error())
 	}
 

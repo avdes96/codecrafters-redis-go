@@ -8,6 +8,7 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
+	"github.com/codecrafters-io/redis-starter-go/app/rdb"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
@@ -15,8 +16,9 @@ type redisServer struct {
 	listener        *net.Listener
 	parser          *protocol.Parser
 	commandRegistry map[string]command.CommandHandler
-	store           map[string]utils.Entry
+	store           map[int]map[string]utils.Entry
 	configParams    map[string]string
+	currentDatabase int
 }
 
 func New(configParams map[string]string) (*redisServer, error) {
@@ -26,13 +28,21 @@ func New(configParams map[string]string) (*redisServer, error) {
 	}
 	p := protocol.NewParser()
 	reg := command.NewCommandRegistry()
-	s := make(map[string]utils.Entry)
+
+	rdbFile, _ := rdb.NewRdbFromFile(configParams["dir"], configParams["dbfilename"])
+	var s map[int]map[string]utils.Entry
+	if rdbFile == nil {
+		s = make(map[int]map[string]utils.Entry)
+	} else {
+		s = rdbFile.Database
+	}
 	return &redisServer{
 		listener:        &l,
 		parser:          p,
 		commandRegistry: reg,
 		store:           s,
 		configParams:    configParams,
+		currentDatabase: 0,
 	}, nil
 }
 

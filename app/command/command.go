@@ -8,8 +8,9 @@ type Command struct {
 }
 
 type Context struct {
-	Store        map[string]utils.Entry
-	ConfigParams map[string]string
+	currentDatabase int
+	Store           map[int]map[string]utils.Entry
+	ConfigParams    map[string]string
 }
 
 type CommandHandler interface {
