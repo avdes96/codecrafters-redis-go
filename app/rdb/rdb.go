@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
@@ -57,7 +58,6 @@ func newRdbFromReader(reader *bufio.Reader) (*Rdb, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	database, err := getDatabase(reader)
 	if err != nil {
 		return nil, err
@@ -220,23 +220,15 @@ func getExpiryTime(reader *bufio.Reader) (time.Time, error) {
 	}
 	switch b {
 	case EXPIRY_SECONDS:
-		data := make([]byte, EXPIRY_SECONDS_BYTE_LEN)
-		n, err := reader.Read(data)
+		data, err := getNBytesFromReader(reader, EXPIRY_SECONDS_BYTE_LEN)
 		if err != nil {
 			return time.Time{}, err
-		}
-		if n != EXPIRY_SECONDS_BYTE_LEN {
-			return time.Time{}, fmt.Errorf("expected to read %d bytes but got %d bytes instead", EXPIRY_SECONDS_BYTE_LEN, n)
 		}
 		return time.Unix(int64(binary.LittleEndian.Uint32(data)), 0), nil
 	case EXPIRY_MILLISECONDS:
-		data := make([]byte, EXPIRY_MILLISECONDS_BYTE_LEN)
-		n, err := reader.Read(data)
+		data, err := getNBytesFromReader(reader, EXPIRY_MILLISECONDS_BYTE_LEN)
 		if err != nil {
 			return time.Time{}, err
-		}
-		if n != EXPIRY_MILLISECONDS_BYTE_LEN {
-			return time.Time{}, fmt.Errorf("expected to read %d bytes but got %d bytes instead", EXPIRY_MILLISECONDS_BYTE_LEN, n)
 		}
 		return time.UnixMilli(int64(binary.LittleEndian.Uint64(data))), nil
 
@@ -246,19 +238,55 @@ func getExpiryTime(reader *bufio.Reader) (time.Time, error) {
 }
 
 func getStringFromStringEncoding(reader *bufio.Reader) (string, error) {
-	len, err := getLengthFromStringEncoding(reader)
+	next, err := reader.Peek(1)
 	if err != nil {
 		return "", err
 	}
-	str := ""
-	for range len {
+	firstTwoBits := (next[0] & 0b11000000) >> 6
+	switch firstTwoBits {
+	case 0b00, 0b01, 0b10:
+		len, err := getLengthFromStringEncoding(reader)
+		if err != nil {
+			return "", err
+		}
+		str := ""
+		for range len {
+			b, err := reader.ReadByte()
+			if err != nil {
+				return "", err
+			}
+			str += string(b)
+		}
+		return str, nil
+	case 0b11:
 		b, err := reader.ReadByte()
 		if err != nil {
 			return "", err
 		}
-		str += string(b)
+		switch b {
+		case 0xC0:
+			b, err := reader.ReadByte()
+			if err != nil {
+				return "", err
+			}
+			return strconv.Itoa(int(b)), nil
+		case 0xC1:
+			b, err := getNBytesFromReader(reader, 2)
+			if err != nil {
+				return "", err
+			}
+			return strconv.Itoa(int(binary.LittleEndian.Uint16(b))), nil
+		case 0xC2:
+			b, err := getNBytesFromReader(reader, 4)
+			if err != nil {
+				return "", err
+			}
+			return strconv.Itoa(int(binary.LittleEndian.Uint32(b))), nil
+		default:
+			return "", fmt.Errorf("invalid format for bytes %b", b)
+		}
 	}
-	return str, nil
+	return "", fmt.Errorf("invalid byte value %b", next)
 }
 
 func getChecksum(reader *bufio.Reader) (string, error) {
@@ -306,20 +334,26 @@ func getLengthFromStringEncoding(reader *bufio.Reader) (int, error) {
 		default:
 			return -1, fmt.Errorf("invalid format of length encoding")
 		}
-		data := make([]byte, bytesToRead)
-		n, err := reader.Read(data)
+		data, err := getNBytesFromReader(reader, bytesToRead)
 		if err != nil {
 			return -1, err
-		}
-		if n != bytesToRead {
-			return -1, fmt.Errorf("only read %d bytes", n)
 		}
 		if bytesToRead == 4 {
 			return int(binary.BigEndian.Uint32(data)), nil
 		}
 		return int(binary.BigEndian.Uint64(data)), nil
-	case 0b11:
-		return -1, fmt.Errorf("special length encoding, ignore")
 	}
 	return -1, fmt.Errorf("error extracting first two bits. ")
+}
+
+func getNBytesFromReader(r *bufio.Reader, n int) ([]byte, error) {
+	buffer := make([]byte, n)
+	nRead, err := r.Read(buffer)
+	if err != nil {
+		return nil, err
+	}
+	if nRead != n {
+		return nil, fmt.Errorf("expected %d bytes read, got %d", nRead, n)
+	}
+	return buffer, nil
 }
