@@ -22,7 +22,12 @@ type redisServer struct {
 }
 
 func New(configParams map[string]string) (*redisServer, error) {
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+	portNum, ok := configParams["port"]
+	if !ok {
+		os.Exit(1)
+	}
+	address := fmt.Sprintf("0.0.0.0:%s", portNum)
+	l, err := net.Listen("tcp", address)
 	if err != nil {
 		return nil, err
 	}
