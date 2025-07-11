@@ -9,8 +9,8 @@ func (k *Keys) Handle(args []string, ctx *Context) []byte {
 		return []byte("Usage: KEYS *")
 	}
 	keys := []string{}
-	if _, ok := ctx.Store[ctx.currentDatabase]; ok {
-		for key := range ctx.Store[ctx.currentDatabase] {
+	if _, ok := ctx.Store[ctx.CurrentDatabase]; ok {
+		for key := range ctx.Store[ctx.CurrentDatabase] {
 			keys = append(keys, key)
 		}
 	}

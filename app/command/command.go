@@ -8,7 +8,7 @@ type Command struct {
 }
 
 type Context struct {
-	currentDatabase int
+	CurrentDatabase int
 	Store           map[int]map[string]utils.Entry
 	ConfigParams    map[string]string
 	ReplicationInfo utils.ReplicationInfo

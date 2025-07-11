@@ -22,7 +22,7 @@ type redisServer struct {
 	replicationInfo utils.ReplicationInfo
 }
 
-func New(configParams map[string]string) (*redisServer, error) {
+func New(configParams map[string]string, replInfo utils.ReplicationInfo) (*redisServer, error) {
 	portNum, ok := configParams["port"]
 	if !ok {
 		os.Exit(1)
@@ -49,7 +49,7 @@ func New(configParams map[string]string) (*redisServer, error) {
 		store:           s,
 		configParams:    configParams,
 		currentDatabase: 0,
-		replicationInfo: utils.ReplicationInfo{Role: utils.MASTER},
+		replicationInfo: replInfo,
 	}, nil
 }
 
@@ -81,13 +81,19 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 		userInput := buffer[:n]
 		parsedCmd, parsedArgs, err := r.parser.ParseInputToCommandAndArgs(userInput)
 		cmd := command.Command{CMD: parsedCmd, ARGS: parsedArgs}
+		ctx := command.Context{
+			CurrentDatabase: r.currentDatabase,
+			Store:           r.store,
+			ConfigParams:    r.configParams,
+			ReplicationInfo: r.replicationInfo,
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
 			continue
 		}
 		output := r.commandRegistry[cmd.CMD].Handle(
 			cmd.ARGS,
-			&command.Context{Store: r.store, ConfigParams: r.configParams},
+			&ctx,
 		)
 		if _, err := conn.Write(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
