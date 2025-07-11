@@ -11,6 +11,7 @@ type Context struct {
 	currentDatabase int
 	Store           map[int]map[string]utils.Entry
 	ConfigParams    map[string]string
+	ReplicationInfo utils.ReplicationInfo
 }
 
 type CommandHandler interface {
@@ -25,5 +26,6 @@ func NewCommandRegistry() map[string]CommandHandler {
 	m["get"] = &Get{}
 	m["config"] = &Config{}
 	m["keys"] = &Keys{}
+	m["info"] = &Info{}
 	return m
 }

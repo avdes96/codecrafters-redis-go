@@ -19,6 +19,7 @@ type redisServer struct {
 	store           map[int]map[string]utils.Entry
 	configParams    map[string]string
 	currentDatabase int
+	replicationInfo utils.ReplicationInfo
 }
 
 func New(configParams map[string]string) (*redisServer, error) {
@@ -48,6 +49,7 @@ func New(configParams map[string]string) (*redisServer, error) {
 		store:           s,
 		configParams:    configParams,
 		currentDatabase: 0,
+		replicationInfo: utils.ReplicationInfo{Role: utils.MASTER},
 	}, nil
 }
 
