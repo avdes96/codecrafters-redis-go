@@ -11,7 +11,7 @@ type Context struct {
 	CurrentDatabase int
 	Store           map[int]map[string]utils.Entry
 	ConfigParams    map[string]string
-	ReplicationInfo utils.ReplicationInfo
+	ReplicationInfo *utils.ReplicationInfo
 }
 
 type CommandHandler interface {

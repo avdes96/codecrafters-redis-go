@@ -1,6 +1,9 @@
 package utils
 
-import "time"
+import (
+	"math/rand"
+	"time"
+)
 
 type Entry struct {
 	Value      string
@@ -20,7 +23,30 @@ func (r role) String() string {
 }
 
 type ReplicationInfo struct {
-	Role role
+	Role          role
+	ReplicationId string
+	Offset        int
+}
+
+const replicationIdLen int = 40
+
+func NewReplicationInfo(r role) *ReplicationInfo {
+	return &ReplicationInfo{
+		Role:          r,
+		ReplicationId: randomAlphanumericString(replicationIdLen),
+		Offset:        0,
+	}
+}
+
+const options string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func randomAlphanumericString(n int) string {
+	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, n)
+	for i := range n {
+		b[i] = options[gen.Intn(len(options))]
+	}
+	return string(b)
 }
 
 func SlicesEqual[T comparable](a, b []T) bool {

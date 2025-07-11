@@ -19,10 +19,10 @@ type redisServer struct {
 	store           map[int]map[string]utils.Entry
 	configParams    map[string]string
 	currentDatabase int
-	replicationInfo utils.ReplicationInfo
+	replicationInfo *utils.ReplicationInfo
 }
 
-func New(configParams map[string]string, replInfo utils.ReplicationInfo) (*redisServer, error) {
+func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redisServer, error) {
 	portNum, ok := configParams["port"]
 	if !ok {
 		os.Exit(1)

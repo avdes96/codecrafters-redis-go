@@ -28,7 +28,7 @@ func main() {
 	if *replicaof == "" {
 		role = utils.MASTER
 	}
-	replicationInfo := utils.ReplicationInfo{Role: role}
+	replicationInfo := utils.NewReplicationInfo(role)
 	r, err := server.New(configParams, replicationInfo)
 	if err != nil {
 		fmt.Println("Failed to create server")
