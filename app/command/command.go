@@ -27,5 +27,6 @@ func NewCommandRegistry() map[string]CommandHandler {
 	m["config"] = &Config{}
 	m["keys"] = &Keys{}
 	m["info"] = &Info{}
+	m["replconf"] = &Replconf{}
 	return m
 }

@@ -81,9 +81,12 @@ func (r *redisServer) initiateConnection(conn net.Conn) error {
 		return err
 	}
 	buf := make([]byte, 1024)
-	_, err = conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		return err
+	}
+	if string(buf[:n]) != "+PONG\r\n" {
+		return fmt.Errorf("expected %s, got %s", "+PONG\r\n", string(buf[:n]))
 	}
 	return nil
 }
@@ -101,9 +104,12 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 	}
 
 	buf := make([]byte, 1024)
-	_, err = conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		return err
+	}
+	if string(buf[:n]) != "+OK\r\n" {
+		return fmt.Errorf("expected %s, got %s", "+OK\r\n", string(buf[:n]))
 	}
 
 	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
@@ -117,6 +123,9 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 	_, err = conn.Read(buf)
 	if err != nil {
 		return err
+	}
+	if string(buf[:n]) != "+OK\r\n" {
+		return fmt.Errorf("expected %s, got %s", "+OK\r\n", string(buf[:n]))
 	}
 	return nil
 }
