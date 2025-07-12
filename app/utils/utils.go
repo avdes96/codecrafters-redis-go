@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -26,16 +28,31 @@ type ReplicationInfo struct {
 	Role          role
 	ReplicationId string
 	Offset        int
+	MasterAddress string
 }
 
 const replicationIdLen int = 40
 
-func NewReplicationInfo(r role) *ReplicationInfo {
+func NewReplicationInfo(masterAddress string) *ReplicationInfo {
+	role := REPLICA
+	formattedAddress := formatAddress(masterAddress)
+	if formattedAddress == "" {
+		role = MASTER
+	}
 	return &ReplicationInfo{
-		Role:          r,
+		Role:          role,
 		ReplicationId: randomAlphanumericString(replicationIdLen),
 		Offset:        0,
+		MasterAddress: formattedAddress,
 	}
+}
+
+func formatAddress(a string) string {
+	parts := strings.Split(a, " ")
+	if len(parts) != 2 {
+		return ""
+	}
+	return fmt.Sprintf("%s:%s", parts[0], parts[1])
 }
 
 const options string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

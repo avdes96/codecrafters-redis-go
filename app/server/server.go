@@ -53,6 +53,22 @@ func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redi
 	}, nil
 }
 
+func (r *redisServer) SyncWithMaster() {
+	if r.replicationInfo.Role == utils.MASTER {
+		return
+	}
+	conn, err := net.Dial("tcp", r.replicationInfo.MasterAddress)
+	if err != nil {
+		return
+	}
+	message := []byte(protocol.ToArrayBulkStrings([]string{"PING"}))
+	_, err = conn.Write(message)
+	if err != nil {
+		return
+	}
+	return
+}
+
 func (r *redisServer) Run() error {
 	defer (*r.listener).Close()
 	for {

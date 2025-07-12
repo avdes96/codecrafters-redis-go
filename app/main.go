@@ -24,15 +24,12 @@ func main() {
 	configParams["dbfilename"] = *dbfilename
 	configParams["port"] = *port
 
-	role := utils.REPLICA
-	if *replicaof == "" {
-		role = utils.MASTER
-	}
-	replicationInfo := utils.NewReplicationInfo(role)
+	replicationInfo := utils.NewReplicationInfo(*replicaof)
 	r, err := server.New(configParams, replicationInfo)
 	if err != nil {
 		fmt.Println("Failed to create server")
 		os.Exit(1)
 	}
+	go r.SyncWithMaster()
 	r.Run()
 }
