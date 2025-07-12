@@ -61,12 +61,62 @@ func (r *redisServer) SyncWithMaster() {
 	if err != nil {
 		return
 	}
-	message := []byte(protocol.ToArrayBulkStrings([]string{"PING"}))
-	_, err = conn.Write(message)
+
+	err = r.initiateConnection(conn)
 	if err != nil {
 		return
 	}
-	return
+
+	err = r.configureReplica(conn)
+	if err != nil {
+		return
+	}
+}
+
+func (r *redisServer) initiateConnection(conn net.Conn) error {
+	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{"PING"})))
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, 1024)
+	_, err = conn.Read(buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *redisServer) configureReplica(conn net.Conn) error {
+	port := r.configParams["port"]
+	if port == "" {
+		return nil
+	}
+	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
+		"REPLCONF", "listening-port", port,
+	})))
+	if err != nil {
+		return err
+	}
+
+	buf := make([]byte, 1024)
+	_, err = conn.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
+		"REPLCONF", "capa", "psync2",
+	})))
+	if err != nil {
+		return err
+	}
+
+	buf = make([]byte, 1024)
+	_, err = conn.Read(buf)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *redisServer) Run() error {
