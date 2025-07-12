@@ -62,13 +62,15 @@ func (r *redisServer) SyncWithMaster() {
 		return
 	}
 
-	err = r.initiateConnection(conn)
-	if err != nil {
+	if err = r.initiateConnection(conn); err != nil {
 		return
 	}
 
-	err = r.configureReplica(conn)
-	if err != nil {
+	if err = r.configureReplica(conn); err != nil {
+		return
+	}
+
+	if err = r.initialiseReplicationStream(conn); err != nil {
 		return
 	}
 }
@@ -112,6 +114,22 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 	}
 
 	buf = make([]byte, 1024)
+	_, err = conn.Read(buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
+	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
+		"PSYNC", "?", "-1",
+	})))
+	if err != nil {
+		return err
+	}
+
+	buf := make([]byte, 1024)
 	_, err = conn.Read(buf)
 	if err != nil {
 		return err
