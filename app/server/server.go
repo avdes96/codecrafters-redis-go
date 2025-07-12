@@ -61,12 +61,28 @@ func (r *redisServer) SyncWithMaster() {
 	if err != nil {
 		return
 	}
-	message := []byte(protocol.ToArrayBulkStrings([]string{"PING"}))
-	_, err = conn.Write(message)
+	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{"PING"})))
 	if err != nil {
 		return
 	}
-	return
+
+	port := r.configParams["port"]
+	if port == "" {
+		return
+	}
+	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
+		"REPLCONF", "listening-port", port,
+	})))
+	if err != nil {
+		return
+	}
+
+	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
+		"REPLCONF", "capa", "psync2",
+	})))
+	if err != nil {
+		return
+	}
 }
 
 func (r *redisServer) Run() error {
