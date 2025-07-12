@@ -1,8 +1,13 @@
 package protocol
 
 import (
+	"fmt"
 	"strconv"
 )
+
+func ToSimpleString(str string) []byte {
+	return []byte(fmt.Sprintf("+%s\r\n", str))
+}
 
 func ToArrayBulkStrings(strs []string) []byte {
 	ret := []byte{}
@@ -34,7 +39,7 @@ func appendCrlf(b []byte) []byte {
 }
 
 func OkResp() []byte {
-	return []byte("+OK\r\n")
+	return ToSimpleString("OK")
 }
 
 func NullBulkString() []byte {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
@@ -139,10 +140,14 @@ func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 	}
 
 	buf := make([]byte, 1024)
-	_, err = conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		return err
 	}
+	if !strings.HasPrefix(string(buf[:n]), "FULLRESYNC") {
+		return fmt.Errorf("expected resp to start with %s, got %s", "FULLRESYNC", buf[:n])
+	}
+
 	return nil
 }
 
