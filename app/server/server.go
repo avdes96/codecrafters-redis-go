@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
@@ -26,7 +26,7 @@ type redisServer struct {
 func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redisServer, error) {
 	portNum, ok := configParams["port"]
 	if !ok {
-		os.Exit(1)
+		log.Fatal("Error fetching port")
 	}
 	address := fmt.Sprintf("0.0.0.0:%s", portNum)
 	l, err := net.Listen("tcp", address)
@@ -60,18 +60,22 @@ func (r *redisServer) SyncWithMaster() {
 	}
 	conn, err := net.Dial("tcp", r.replicationInfo.MasterAddress)
 	if err != nil {
+		log.Printf("Error dialing master server: %s", err)
 		return
 	}
 
 	if err = r.initiateConnection(conn); err != nil {
+		log.Printf("Error initiating connection with master server: %s", err)
 		return
 	}
 
 	if err = r.configureReplica(conn); err != nil {
+		log.Printf("Error configuring replica: %s", err)
 		return
 	}
 
 	if err = r.initialiseReplicationStream(conn); err != nil {
+		log.Printf("Error initialising replication stream: %s", err)
 		return
 	}
 }
@@ -156,8 +160,7 @@ func (r *redisServer) Run() error {
 	for {
 		conn, err := (*r.listener).Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
+			log.Fatalf("Error accepting connection: %s", err.Error())
 		}
 		go r.handleConnection(conn)
 	}
@@ -172,7 +175,7 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			return
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from connection %s", err.Error())
+			log.Printf("Error reading from connection %s", err.Error())
 			continue
 		}
 
@@ -186,7 +189,7 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			ReplicationInfo: r.replicationInfo,
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing user input: %s", err)
+			log.Printf("error parsing user input: %s", err)
 			continue
 		}
 		output := r.commandRegistry[cmd.CMD].Handle(
@@ -194,7 +197,7 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			&ctx,
 		)
 		if _, err := conn.Write(output); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to connection %s", err.Error())
+			log.Printf("Error writing to connection %s", err.Error())
 			continue
 		}
 	}

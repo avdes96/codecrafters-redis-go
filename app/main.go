@@ -2,17 +2,19 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 
+	"github.com/codecrafters-io/redis-starter-go/app/logger"
 	"github.com/codecrafters-io/redis-starter-go/app/server"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 func main() {
+	logger.InitLogger()
 	currentDir, err := os.Getwd()
 	if err != nil {
-		os.Exit(1)
+		log.Fatalf("Error opening file %s", err)
 	}
 	dbdir := flag.String("dir", currentDir, "The directory of the rdb file to initialise the redis cache with.")
 	dbfilename := flag.String("dbfilename", "defaultdb", "The rdb file to initialise the redis cache with.")
@@ -27,8 +29,7 @@ func main() {
 	replicationInfo := utils.NewReplicationInfo(*replicaof)
 	r, err := server.New(configParams, replicationInfo)
 	if err != nil {
-		fmt.Println("Failed to create server")
-		os.Exit(1)
+		log.Fatalf("Failed to create server: %s", err)
 	}
 	go r.SyncWithMaster()
 	r.Run()
