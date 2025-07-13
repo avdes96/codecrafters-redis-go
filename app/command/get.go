@@ -27,3 +27,7 @@ func (g *Get) Handle(args []string, ctx *Context) {
 	utils.WriteToConnection(ctx.Conn, protocol.ToBulkString(entry.Value))
 	return
 }
+
+func (g *Get) IsWriteCommand() bool {
+	return false
+}

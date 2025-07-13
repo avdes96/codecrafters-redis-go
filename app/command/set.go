@@ -42,3 +42,7 @@ const usageStr string = "Usage: SET <key> <value> [PX | milliseconds]"
 func writeUsageString(conn net.Conn) {
 	utils.WriteToConnection(conn, []byte(usageStr))
 }
+
+func (s *Set) IsWriteCommand() bool {
+	return true
+}

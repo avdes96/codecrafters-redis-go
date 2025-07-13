@@ -31,6 +31,7 @@ type ReplicationInfo struct {
 	ReplicationId string
 	Offset        int
 	MasterAddress string
+	Replicas      map[net.Conn]bool
 }
 
 const replicationIdLen int = 40
@@ -46,7 +47,15 @@ func NewReplicationInfo(masterAddress string) *ReplicationInfo {
 		ReplicationId: randomAlphanumericString(replicationIdLen),
 		Offset:        0,
 		MasterAddress: formattedAddress,
+		Replicas:      make(map[net.Conn]bool),
 	}
+}
+
+func (r *ReplicationInfo) AddReplica(c net.Conn) {
+	if r.Role != MASTER {
+		return
+	}
+	r.Replicas[c] = true
 }
 
 func formatAddress(a string) string {

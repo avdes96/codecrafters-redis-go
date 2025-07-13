@@ -16,3 +16,7 @@ func (e *Echo) Handle(args []string, ctx *Context) {
 	}
 	utils.WriteToConnection(ctx.Conn, protocol.ToBulkString(ret))
 }
+
+func (e *Echo) IsWriteCommand() bool {
+	return false
+}

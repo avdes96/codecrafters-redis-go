@@ -30,3 +30,7 @@ func (c *Config) Handle(args []string, ctx *Context) {
 	}
 	utils.WriteToConnection(ctx.Conn, ret)
 }
+
+func (c *Config) IsWriteCommand() bool {
+	return false
+}

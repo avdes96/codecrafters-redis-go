@@ -22,6 +22,7 @@ type Context struct {
 
 type CommandHandler interface {
 	Handle(args []string, ctx *Context)
+	IsWriteCommand() bool
 }
 
 type CommandRegistry struct {
@@ -42,11 +43,16 @@ func NewCommandRegistry() CommandRegistry {
 	return CommandRegistry{Commands: m}
 }
 
-func (cr *CommandRegistry) Handle(cmd Command, ctx *Context) error {
+func (cr *CommandRegistry) Handle(cmd Command, ctx *Context, userInput []byte) error {
 	handler, ok := cr.Commands[cmd.CMD]
 	if !ok {
 		return fmt.Errorf("%s not a valid command", cmd.CMD)
 	}
 	handler.Handle(cmd.ARGS, ctx)
+	if handler.IsWriteCommand() {
+		for r := range ctx.ReplicationInfo.Replicas {
+			r.Write(userInput)
+		}
+	}
 	return nil
 }

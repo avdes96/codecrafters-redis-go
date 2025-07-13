@@ -22,4 +22,9 @@ func (p *Psync) Handle(args []string, ctx *Context) {
 		return
 	}
 	utils.WriteToConnection(ctx.Conn, emptyRdbFile)
+	ctx.ReplicationInfo.AddReplica(ctx.Conn)
+}
+
+func (p *Psync) IsWriteCommand() bool {
+	return false
 }

@@ -17,3 +17,7 @@ func (i *Info) Handle(args []string, ctx *Context) {
 	output := fmt.Sprintf("role:%s\r\nmaster_repl_offset:%s\r\nmaster_replid:%s", role, offset, id)
 	utils.WriteToConnection(ctx.Conn, protocol.ToBulkString(output))
 }
+
+func (i *Info) IsWriteCommand() bool {
+	return false
+}

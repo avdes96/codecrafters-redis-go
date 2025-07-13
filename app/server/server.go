@@ -193,7 +193,7 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			log.Printf("error parsing user input: %s", err)
 			continue
 		}
-		err = r.commandRegistry.Handle(cmd, &ctx)
+		err = r.commandRegistry.Handle(cmd, &ctx, userInput)
 		if err != nil {
 			log.Printf("Error handling command: %s", err)
 		}

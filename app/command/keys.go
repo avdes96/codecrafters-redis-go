@@ -20,3 +20,7 @@ func (k *Keys) Handle(args []string, ctx *Context) {
 	}
 	utils.WriteToConnection(ctx.Conn, protocol.ToArrayBulkStrings(keys))
 }
+
+func (k *Keys) IsWriteCommand() bool {
+	return false
+}
