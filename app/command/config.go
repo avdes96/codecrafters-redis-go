@@ -4,25 +4,29 @@ import (
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Config struct{}
 
-func (c *Config) Handle(args []string, ctx *Context) []byte {
+func (c *Config) Handle(args []string, ctx *Context) {
+	var ret []byte
 	switch strings.ToLower(args[0]) {
 	case "get":
 		if len(args) < 2 {
-			return []byte("Usage: CONFIG GET <config_param> <config_param>...")
+			ret = []byte("Usage: CONFIG GET <config_param> <config_param>...")
+			break
 		}
-		ret := []string{}
+		strs := []string{}
 		for _, key := range args[1:] {
 			if val, ok := ctx.ConfigParams[key]; ok {
-				ret = append(ret, key)
-				ret = append(ret, val)
+				strs = append(strs, key)
+				strs = append(strs, val)
 			}
 		}
-		return protocol.ToArrayBulkStrings(ret)
+		ret = protocol.ToArrayBulkStrings(strs)
 	default:
-		return []byte("Available CONFIG commands: GET")
+		ret = []byte("Available CONFIG commands: GET")
 	}
+	utils.WriteToConnection(ctx.Conn, ret)
 }

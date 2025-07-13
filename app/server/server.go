@@ -183,6 +183,7 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 		parsedCmd, parsedArgs, err := r.parser.ParseInputToCommandAndArgs(userInput)
 		cmd := command.Command{CMD: parsedCmd, ARGS: parsedArgs}
 		ctx := command.Context{
+			Conn:            conn,
 			CurrentDatabase: r.currentDatabase,
 			Store:           r.store,
 			ConfigParams:    r.configParams,
@@ -192,13 +193,9 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			log.Printf("error parsing user input: %s", err)
 			continue
 		}
-		output := r.commandRegistry[cmd.CMD].Handle(
+		r.commandRegistry[cmd.CMD].Handle(
 			cmd.ARGS,
 			&ctx,
 		)
-		if _, err := conn.Write(output); err != nil {
-			log.Printf("Error writing to connection %s", err.Error())
-			continue
-		}
 	}
 }

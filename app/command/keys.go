@@ -1,12 +1,16 @@
 package command
 
-import "github.com/codecrafters-io/redis-starter-go/app/protocol"
+import (
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
+)
 
 type Keys struct{}
 
-func (k *Keys) Handle(args []string, ctx *Context) []byte {
+func (k *Keys) Handle(args []string, ctx *Context) {
 	if len(args) != 1 || args[0] != "*" {
-		return []byte("Usage: KEYS *")
+		utils.WriteToConnection(ctx.Conn, []byte("Usage: KEYS *"))
+		return
 	}
 	keys := []string{}
 	if _, ok := ctx.Store[ctx.CurrentDatabase]; ok {
@@ -14,5 +18,5 @@ func (k *Keys) Handle(args []string, ctx *Context) []byte {
 			keys = append(keys, key)
 		}
 	}
-	return protocol.ToArrayBulkStrings(keys)
+	utils.WriteToConnection(ctx.Conn, protocol.ToArrayBulkStrings(keys))
 }

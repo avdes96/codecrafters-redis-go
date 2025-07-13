@@ -2,7 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"net"
 	"strings"
 	"time"
 )
@@ -76,4 +78,10 @@ func SlicesEqual[T comparable](a, b []T) bool {
 		}
 	}
 	return true
+}
+
+func WriteToConnection(conn net.Conn, b []byte) {
+	if _, err := conn.Write(b); err != nil {
+		log.Printf("Error writing to connection %s", err.Error())
+	}
 }

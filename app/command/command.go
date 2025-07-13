@@ -1,6 +1,10 @@
 package command
 
-import "github.com/codecrafters-io/redis-starter-go/app/utils"
+import (
+	"net"
+
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
+)
 
 type Command struct {
 	CMD  string
@@ -8,6 +12,7 @@ type Command struct {
 }
 
 type Context struct {
+	Conn            net.Conn
 	CurrentDatabase int
 	Store           map[int]map[string]utils.Entry
 	ConfigParams    map[string]string
@@ -15,7 +20,7 @@ type Context struct {
 }
 
 type CommandHandler interface {
-	Handle(args []string, ctx *Context) []byte
+	Handle(args []string, ctx *Context)
 }
 
 func NewCommandRegistry() map[string]CommandHandler {

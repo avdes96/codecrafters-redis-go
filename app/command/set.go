@@ -1,6 +1,7 @@
 package command
 
 import (
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -11,20 +12,21 @@ import (
 
 type Set struct{}
 
-const usageStr string = "Usage: SET <key> <value> [PX | milliseconds]"
-
-func (s *Set) Handle(args []string, ctx *Context) []byte {
+func (s *Set) Handle(args []string, ctx *Context) {
 	if !(len(args) == 2 || len(args) == 4) {
-		return []byte(usageStr)
+		writeUsageString(ctx.Conn)
+		return
 	}
 	var expTime time.Time
 	if len(args) == 4 {
 		if strings.ToLower(args[2]) != "px" {
-			return []byte(usageStr)
+			writeUsageString(ctx.Conn)
+			return
 		}
 		expiryDelta, err := strconv.Atoi(args[3])
 		if err != nil {
-			return []byte(usageStr)
+			writeUsageString(ctx.Conn)
+			return
 		}
 		expTime = time.Now().Add(time.Millisecond * time.Duration(expiryDelta))
 	}
@@ -32,5 +34,11 @@ func (s *Set) Handle(args []string, ctx *Context) []byte {
 		ctx.Store[ctx.CurrentDatabase] = make(map[string]utils.Entry)
 	}
 	ctx.Store[ctx.CurrentDatabase][args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
-	return protocol.OkResp()
+	utils.WriteToConnection(ctx.Conn, protocol.OkResp())
+}
+
+const usageStr string = "Usage: SET <key> <value> [PX | milliseconds]"
+
+func writeUsageString(conn net.Conn) {
+	utils.WriteToConnection(conn, []byte(usageStr))
 }
