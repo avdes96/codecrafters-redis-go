@@ -3,6 +3,7 @@ package rdb
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -356,4 +357,16 @@ func getNBytesFromReader(r *bufio.Reader, n int) ([]byte, error) {
 		return nil, fmt.Errorf("expected %d bytes read, got %d", nRead, n)
 	}
 	return buffer, nil
+}
+
+func EmptyRdbFile() ([]byte, error) {
+	fileHex := "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2"
+	file, err := hex.DecodeString(fileHex)
+	if err != nil {
+		return nil, fmt.Errorf("error getting empty rdb file: %s", err)
+	}
+	l := len(file)
+	ret := []byte("$" + strconv.Itoa(l) + "\r\n")
+	ret = append(ret, file...)
+	return ret, nil
 }
