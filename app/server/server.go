@@ -16,7 +16,7 @@ import (
 type redisServer struct {
 	listener        *net.Listener
 	parser          *protocol.Parser
-	commandRegistry map[string]command.CommandHandler
+	commandRegistry command.CommandRegistry
 	store           map[int]map[string]utils.Entry
 	configParams    map[string]string
 	currentDatabase int
@@ -193,9 +193,9 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 			log.Printf("error parsing user input: %s", err)
 			continue
 		}
-		r.commandRegistry[cmd.CMD].Handle(
-			cmd.ARGS,
-			&ctx,
-		)
+		err = r.commandRegistry.Handle(cmd, &ctx)
+		if err != nil {
+			log.Printf("Error handling command: %s", err)
+		}
 	}
 }

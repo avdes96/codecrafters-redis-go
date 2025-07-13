@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
@@ -23,7 +24,11 @@ type CommandHandler interface {
 	Handle(args []string, ctx *Context)
 }
 
-func NewCommandRegistry() map[string]CommandHandler {
+type CommandRegistry struct {
+	Commands map[string]CommandHandler
+}
+
+func NewCommandRegistry() CommandRegistry {
 	m := make(map[string]CommandHandler)
 	m["ping"] = &Ping{}
 	m["echo"] = &Echo{}
@@ -34,5 +39,14 @@ func NewCommandRegistry() map[string]CommandHandler {
 	m["info"] = &Info{}
 	m["replconf"] = &Replconf{}
 	m["psync"] = &Psync{}
-	return m
+	return CommandRegistry{Commands: m}
+}
+
+func (cr *CommandRegistry) Handle(cmd Command, ctx *Context) error {
+	handler, ok := cr.Commands[cmd.CMD]
+	if !ok {
+		return fmt.Errorf("%s not a valid command", cmd.CMD)
+	}
+	handler.Handle(cmd.ARGS, ctx)
+	return nil
 }
