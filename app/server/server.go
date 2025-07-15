@@ -135,6 +135,8 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 	return nil
 }
 
+const fullresync string = "+FULLRESYNC"
+
 func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
 		"PSYNC", "?", "-1",
@@ -148,8 +150,13 @@ func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	if !strings.HasPrefix(string(buf[:n]), "FULLRESYNC") {
-		return fmt.Errorf("expected resp to start with %s, got %s", "FULLRESYNC", buf[:n])
+	if !strings.HasPrefix(string(buf[:n]), fullresync) {
+		return fmt.Errorf("expected resp to start with %s, got %s", fullresync, buf[:n])
+	}
+	buf = make([]byte, 1024)
+	_, err = conn.Read(buf)
+	if err != nil {
+		return err
 	}
 
 	return nil
