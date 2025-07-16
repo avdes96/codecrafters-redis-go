@@ -31,6 +31,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create server: %s", err)
 	}
-	go r.SyncWithMaster()
+	r.SyncWithMaster()
 	r.Run()
 }

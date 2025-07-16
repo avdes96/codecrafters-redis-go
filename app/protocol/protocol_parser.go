@@ -2,8 +2,11 @@ package protocol
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
+
+	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Parser struct{}
@@ -12,56 +15,76 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-func (p *Parser) ParseInputToCommandAndArgs(b []byte) (string, []string, error) {
-	switch b[0] {
+func (p *Parser) Parse(b []byte, commandChan chan utils.Command) {
+	defer close(commandChan)
+	idx := 0
+	var cmd string
+	var args []string
+	var err error
+	for idx < len(b) {
+		cmd, args, idx, err = p.ParseInputToCommandAndArgs(b, idx)
+		if err != nil {
+			log.Printf("Error parsing input: %s", err)
+			continue
+		}
+		commandChan <- utils.Command{CMD: cmd, ARGS: args}
+	}
+}
+
+func (p *Parser) ParseInputToCommandAndArgs(b []byte, startIdx int) (string, []string, int, error) {
+	switch b[startIdx] {
 	case '*':
-		strs, err := p.parseArrayBulkStrings(b)
+		strs, idx, err := p.parseArrayBulkStrings(b, startIdx)
 		if err != nil {
-			return "", []string{}, err
+			return "", []string{}, -1, err
 		}
-		return strings.ToLower(strs[0]), strs[1:], nil
+		return strings.ToLower(strs[0]), strs[1:], idx, nil
 	case '+':
-		str, err := p.parseSimpleString(b)
+		str, idx, err := p.parseSimpleString(b, startIdx)
 		if err != nil {
-			return "", []string{}, err
+			return "", []string{}, -1, err
 		}
-		return strings.ToLower(str), []string{}, nil
+		return strings.ToLower(str), []string{}, idx, nil
 	default:
-		return "", []string{}, fmt.Errorf("command does not start with valid char: %s", b)
+		return "", []string{}, -1, fmt.Errorf("command does not start with valid char: %s", b)
 	}
 }
 
-func (p *Parser) parseSimpleString(b []byte) (string, error) {
-	if b[0] != '+' {
-		return "", fmt.Errorf("simple string doesn't start with +: %s", b)
+func (p *Parser) parseSimpleString(b []byte, startIdx int) (string, int, error) {
+	if b[startIdx] != '+' {
+		return "", -1, fmt.Errorf("simple string doesn't start with +: %s", b)
 	}
-	if !(len(b) >= 3 && b[len(b)-2] == '\r' && b[len(b)-1] == '\n') {
-		return "", fmt.Errorf("simple string does not end with crlf: %s", b)
+	str := ""
+	i := startIdx + 1
+	for i < len(b) {
+		if b[i] == '\n' && i > 0 && b[i-1] == '\r' {
+			return str, i + 1, nil
+		}
+		str += string(b[i])
+		i++
 	}
-	return string(b[1 : len(b)-2]), nil
+	return "", -1, fmt.Errorf("simple string does not end with crlf: %s", b)
 }
 
-func (p *Parser) parseArrayBulkStrings(b []byte) ([]string, error) {
-	if b[0] != '*' {
-		return []string{}, fmt.Errorf("array of bulk strs doesn't start with *: %s", b)
+func (p *Parser) parseArrayBulkStrings(b []byte, startIdx int) ([]string, int, error) {
+	if b[startIdx] != '*' {
+		return []string{}, -1, fmt.Errorf("array of bulk strs doesn't start with *: %s", b)
 	}
-	i := 1
+	i := startIdx + 1
 	arraySize, i, err := p.parseIntFromByteArray(b, i)
 	if err != nil {
-		return []string{}, err
+		return []string{}, -1, err
 	}
 	arr := make([]string, arraySize)
-	arrIdx := 0
-	for i < len(b) {
+	for arrIdx := range arraySize {
 		s, newIdx, err := p.parseStringFromArray(b, i)
 		if err != nil {
-			return []string{}, err
+			return []string{}, -1, err
 		}
 		arr[arrIdx] = s
-		arrIdx++
 		i = newIdx
 	}
-	return arr, nil
+	return arr, i, nil
 }
 
 func (p *Parser) parseStringFromArray(b []byte, idx int) (string, int, error) {

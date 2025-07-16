@@ -14,6 +14,11 @@ type Entry struct {
 	ExpiryTime time.Time
 }
 
+type Command struct {
+	CMD  string
+	ARGS []string
+}
+
 type role int
 
 const (

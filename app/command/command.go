@@ -7,11 +7,6 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
-type Command struct {
-	CMD  string
-	ARGS []string
-}
-
 type Context struct {
 	Conn            net.Conn
 	CurrentDatabase int
@@ -43,7 +38,7 @@ func NewCommandRegistry() CommandRegistry {
 	return CommandRegistry{Commands: m}
 }
 
-func (cr *CommandRegistry) Handle(cmd Command, ctx *Context, userInput []byte) error {
+func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *Context, userInput []byte) error {
 	handler, ok := cr.Commands[cmd.CMD]
 	if !ok {
 		return fmt.Errorf("%s not a valid command", cmd.CMD)
