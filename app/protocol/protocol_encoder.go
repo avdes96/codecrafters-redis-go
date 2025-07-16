@@ -45,3 +45,9 @@ func OkResp() []byte {
 func NullBulkString() []byte {
 	return []byte("$-1\r\n")
 }
+
+func CommandAndArgsToBulkString(cmd string, args []string) []byte {
+	s := []string{cmd}
+	s = append(s, args...)
+	return ToArrayBulkStrings(s)
+}

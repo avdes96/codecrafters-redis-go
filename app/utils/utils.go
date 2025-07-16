@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+type Event struct {
+	Conn net.Conn
+	Cmd  Command
+	Ctx  Context
+}
+
+type Context struct {
+	Conn            net.Conn
+	CurrentDatabase int
+	Store           map[int]map[string]Entry
+	ConfigParams    map[string]string
+	ReplicationInfo *ReplicationInfo
+}
+
 type Entry struct {
 	Value      string
 	ExpiryTime time.Time

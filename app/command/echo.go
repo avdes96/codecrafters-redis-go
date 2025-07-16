@@ -7,7 +7,7 @@ import (
 
 type Echo struct{}
 
-func (e *Echo) Handle(args []string, ctx *Context) {
+func (e *Echo) Handle(args []string, ctx *utils.Context) {
 	var ret string
 	if len(args) == 1 {
 		ret = args[0]

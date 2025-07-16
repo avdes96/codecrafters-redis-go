@@ -7,7 +7,7 @@ import (
 
 type Keys struct{}
 
-func (k *Keys) Handle(args []string, ctx *Context) {
+func (k *Keys) Handle(args []string, ctx *utils.Context) {
 	if len(args) != 1 || args[0] != "*" {
 		utils.WriteToConnection(ctx.Conn, []byte("Usage: KEYS *"))
 		return

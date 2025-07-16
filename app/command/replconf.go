@@ -7,7 +7,7 @@ import (
 
 type Replconf struct{}
 
-func (r *Replconf) Handle(args []string, ctx *Context) {
+func (r *Replconf) Handle(args []string, ctx *utils.Context) {
 	utils.WriteToConnection(ctx.Conn, protocol.OkResp())
 }
 

@@ -12,7 +12,7 @@ import (
 
 type Set struct{}
 
-func (s *Set) Handle(args []string, ctx *Context) {
+func (s *Set) Handle(args []string, ctx *utils.Context) {
 	if !(len(args) == 2 || len(args) == 4) {
 		writeUsageString(ctx.Conn)
 		return

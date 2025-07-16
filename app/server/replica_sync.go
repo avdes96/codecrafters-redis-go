@@ -11,6 +11,7 @@ import (
 )
 
 func (r *redisServer) SyncWithMaster() {
+	defer close(r.replicaSyncDone)
 	if r.replicationInfo.Role == utils.MASTER {
 		return
 	}
@@ -109,11 +110,7 @@ func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 	if !strings.HasPrefix(string(buf[:n]), fullresync) {
 		return fmt.Errorf("expected resp to start with %s, got %s", fullresync, buf[:n])
 	}
-	buf = make([]byte, 1024)
-	_, err = conn.Read(buf)
-	if err != nil {
-		return err
-	}
+	go r.handleConnection(conn)
 
 	return nil
 }

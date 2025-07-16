@@ -4,7 +4,7 @@ import "github.com/codecrafters-io/redis-starter-go/app/utils"
 
 type Ping struct{}
 
-func (p *Ping) Handle(args []string, ctx *Context) {
+func (p *Ping) Handle(args []string, ctx *utils.Context) {
 	utils.WriteToConnection(ctx.Conn, []byte("+PONG\r\n"))
 }
 

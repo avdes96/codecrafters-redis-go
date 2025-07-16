@@ -9,7 +9,7 @@ import (
 
 type Config struct{}
 
-func (c *Config) Handle(args []string, ctx *Context) {
+func (c *Config) Handle(args []string, ctx *utils.Context) {
 	var ret []byte
 	switch strings.ToLower(args[0]) {
 	case "get":

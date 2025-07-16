@@ -2,21 +2,13 @@ package command
 
 import (
 	"fmt"
-	"net"
 
+	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
-type Context struct {
-	Conn            net.Conn
-	CurrentDatabase int
-	Store           map[int]map[string]utils.Entry
-	ConfigParams    map[string]string
-	ReplicationInfo *utils.ReplicationInfo
-}
-
 type CommandHandler interface {
-	Handle(args []string, ctx *Context)
+	Handle(args []string, ctx *utils.Context)
 	IsWriteCommand() bool
 }
 
@@ -38,15 +30,18 @@ func NewCommandRegistry() CommandRegistry {
 	return CommandRegistry{Commands: m}
 }
 
-func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *Context, userInput []byte) error {
+func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
 	handler, ok := cr.Commands[cmd.CMD]
 	if !ok {
 		return fmt.Errorf("%s not a valid command", cmd.CMD)
 	}
 	handler.Handle(cmd.ARGS, ctx)
+	if ctx.ReplicationInfo.Role != utils.MASTER {
+		return nil
+	}
 	if handler.IsWriteCommand() {
-		for r := range ctx.ReplicationInfo.Replicas {
-			r.Write(userInput)
+		for replica := range ctx.ReplicationInfo.Replicas {
+			replica.Write(protocol.CommandAndArgsToBulkString(cmd.CMD, cmd.ARGS))
 		}
 	}
 	return nil

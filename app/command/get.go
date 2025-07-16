@@ -9,7 +9,7 @@ import (
 
 type Get struct{}
 
-func (g *Get) Handle(args []string, ctx *Context) {
+func (g *Get) Handle(args []string, ctx *utils.Context) {
 	if len(args) != 1 {
 		utils.WriteToConnection(ctx.Conn, []byte("Usage: GET <key>"))
 		return
