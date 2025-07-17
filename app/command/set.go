@@ -12,7 +12,7 @@ import (
 
 type Set struct{}
 
-func (s *Set) Handle(args []string, ctx *utils.Context) {
+func (s *Set) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	if !(len(args) == 2 || len(args) == 4) {
 		writeUsageString(ctx.Conn)
 		return
@@ -34,7 +34,7 @@ func (s *Set) Handle(args []string, ctx *utils.Context) {
 		ctx.Store[ctx.CurrentDatabase] = make(map[string]utils.Entry)
 	}
 	ctx.Store[ctx.CurrentDatabase][args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
-	utils.WriteToConnection(ctx.Conn, protocol.OkResp())
+	writeChan <- protocol.OkResp()
 }
 
 const usageStr string = "Usage: SET <key> <value> [PX | milliseconds]"

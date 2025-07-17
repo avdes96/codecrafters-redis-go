@@ -12,16 +12,16 @@ import (
 
 type Psync struct{}
 
-func (p *Psync) Handle(args []string, ctx *utils.Context) {
+func (p *Psync) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	ret := protocol.ToSimpleString(fmt.Sprintf("FULLRESYNC %s %s",
 		ctx.ReplicationInfo.ReplicationId, strconv.Itoa(ctx.ReplicationInfo.Offset)))
-	utils.WriteToConnection(ctx.Conn, ret)
+	writeChan <- ret
 	emptyRdbFile, err := rdb.EmptyRdbFile() // Assume rdb file is empty for this challenge
 	if err != nil {
 		log.Printf("Error loading empty rdb file: %s", err)
 		return
 	}
-	utils.WriteToConnection(ctx.Conn, emptyRdbFile)
+	writeChan <- emptyRdbFile
 	ctx.ReplicationInfo.AddReplica(ctx.Conn)
 }
 

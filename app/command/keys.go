@@ -7,9 +7,9 @@ import (
 
 type Keys struct{}
 
-func (k *Keys) Handle(args []string, ctx *utils.Context) {
+func (k *Keys) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	if len(args) != 1 || args[0] != "*" {
-		utils.WriteToConnection(ctx.Conn, []byte("Usage: KEYS *"))
+		writeChan <- []byte("Usage: KEYS *")
 		return
 	}
 	keys := []string{}
@@ -18,7 +18,7 @@ func (k *Keys) Handle(args []string, ctx *utils.Context) {
 			keys = append(keys, key)
 		}
 	}
-	utils.WriteToConnection(ctx.Conn, protocol.ToArrayBulkStrings(keys))
+	writeChan <- protocol.ToArrayBulkStrings(keys)
 }
 
 func (k *Keys) IsWriteCommand() bool {

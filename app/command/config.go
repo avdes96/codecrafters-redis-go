@@ -9,7 +9,7 @@ import (
 
 type Config struct{}
 
-func (c *Config) Handle(args []string, ctx *utils.Context) {
+func (c *Config) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	var ret []byte
 	switch strings.ToLower(args[0]) {
 	case "get":
@@ -28,7 +28,7 @@ func (c *Config) Handle(args []string, ctx *utils.Context) {
 	default:
 		ret = []byte("Available CONFIG commands: GET")
 	}
-	utils.WriteToConnection(ctx.Conn, ret)
+	writeChan <- ret
 }
 
 func (c *Config) IsWriteCommand() bool {

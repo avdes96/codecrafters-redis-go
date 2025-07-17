@@ -8,7 +8,7 @@ import (
 )
 
 type CommandHandler interface {
-	Handle(args []string, ctx *utils.Context)
+	Handle(args []string, ctx *utils.Context, writeChan chan []byte)
 	IsWriteCommand() bool
 }
 
@@ -35,14 +35,35 @@ func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
 	if !ok {
 		return fmt.Errorf("%s not a valid command", cmd.CMD)
 	}
-	handler.Handle(cmd.ARGS, ctx)
+	writeChan := make(chan []byte, 100)
+	go func() {
+		handler.Handle(cmd.ARGS, ctx, writeChan)
+		close(writeChan)
+	}()
+	if canWrite(ctx) {
+		for b := range writeChan {
+			utils.WriteToConnection(ctx.Conn, b)
+		}
+	}
+
+	propagateCommands(handler, cmd, ctx)
+	return nil
+}
+
+func propagateCommands(handler CommandHandler, cmd utils.Command, ctx *utils.Context) {
 	if ctx.ReplicationInfo.Role != utils.MASTER {
-		return nil
+		return
 	}
 	if handler.IsWriteCommand() {
 		for replica := range ctx.ReplicationInfo.Replicas {
 			replica.Write(protocol.CommandAndArgsToBulkString(cmd.CMD, cmd.ARGS))
 		}
 	}
-	return nil
+}
+
+func canWrite(ctx *utils.Context) bool {
+	if ctx.ReplicationInfo.Role == utils.MASTER {
+		return true
+	}
+	return false
 }

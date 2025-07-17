@@ -7,14 +7,14 @@ import (
 
 type Echo struct{}
 
-func (e *Echo) Handle(args []string, ctx *utils.Context) {
+func (e *Echo) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	var ret string
 	if len(args) == 1 {
 		ret = args[0]
 	} else {
 		ret = "Usage: ECHO <message>"
 	}
-	utils.WriteToConnection(ctx.Conn, protocol.ToBulkString(ret))
+	writeChan <- protocol.ToBulkString(ret)
 }
 
 func (e *Echo) IsWriteCommand() bool {

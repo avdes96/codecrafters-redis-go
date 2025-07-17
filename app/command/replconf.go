@@ -7,8 +7,8 @@ import (
 
 type Replconf struct{}
 
-func (r *Replconf) Handle(args []string, ctx *utils.Context) {
-	utils.WriteToConnection(ctx.Conn, protocol.OkResp())
+func (r *Replconf) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+	writeChan <- protocol.OkResp()
 }
 
 func (r *Replconf) IsWriteCommand() bool {

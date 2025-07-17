@@ -9,22 +9,22 @@ import (
 
 type Get struct{}
 
-func (g *Get) Handle(args []string, ctx *utils.Context) {
+func (g *Get) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	if len(args) != 1 {
-		utils.WriteToConnection(ctx.Conn, []byte("Usage: GET <key>"))
+		writeChan <- []byte("Usage: GET <key>")
 		return
 	}
 	entry, ok := ctx.Store[ctx.CurrentDatabase][args[0]]
 	if !ok {
-		utils.WriteToConnection(ctx.Conn, protocol.NullBulkString())
+		writeChan <- protocol.NullBulkString()
 		return
 	}
 	if !entry.ExpiryTime.IsZero() && entry.ExpiryTime.Before(time.Now()) {
 		delete(ctx.Store[ctx.CurrentDatabase], args[0])
-		utils.WriteToConnection(ctx.Conn, protocol.NullBulkString())
+		writeChan <- protocol.NullBulkString()
 		return
 	}
-	utils.WriteToConnection(ctx.Conn, protocol.ToBulkString(entry.Value))
+	writeChan <- protocol.ToBulkString(entry.Value)
 }
 
 func (g *Get) IsWriteCommand() bool {
