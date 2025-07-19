@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -11,8 +10,8 @@ import (
 )
 
 func (r *redisServer) SyncWithMaster() {
-	defer close(r.replicaSyncDone)
-	if r.replicationInfo.Role == utils.MASTER {
+	if r.replicationInfo.Role == utils.ROLE_MASTER {
+		r.syncList.completeSync()
 		return
 	}
 	conn, err := net.Dial("tcp", r.replicationInfo.MasterAddress)
@@ -21,34 +20,36 @@ func (r *redisServer) SyncWithMaster() {
 		return
 	}
 
+	go r.handleConnection(conn, utils.CONN_TYPE_REPLICA)
 	if err = r.initiateConnection(conn); err != nil {
 		log.Printf("Error initiating connection with master server: %s", err)
 		return
+	}
+	for !r.syncList.pingDone {
 	}
 
 	if err = r.configureReplica(conn); err != nil {
 		log.Printf("Error configuring replica: %s", err)
 		return
 	}
+	for !r.syncList.firstOkDone {
+	}
+	for !r.syncList.secondOkDone {
+	}
 
 	if err = r.initialiseReplicationStream(conn); err != nil {
 		log.Printf("Error initialising replication stream: %s", err)
 		return
 	}
+	for !r.syncList.fullresyncDone {
+	}
+	r.syncList.completeSync()
 }
 
 func (r *redisServer) initiateConnection(conn net.Conn) error {
 	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{"PING"})))
 	if err != nil {
 		return err
-	}
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return err
-	}
-	if string(buf[:n]) != "+PONG\r\n" {
-		return fmt.Errorf("expected %s, got %s", "+PONG\r\n", string(buf[:n]))
 	}
 	return nil
 }
@@ -65,29 +66,11 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 		return err
 	}
 
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return err
-	}
-	if string(buf[:n]) != "+OK\r\n" {
-		return fmt.Errorf("expected %s, got %s", "+OK\r\n", string(buf[:n]))
-	}
-
 	_, err = conn.Write([]byte(protocol.ToArrayBulkStrings([]string{
 		"REPLCONF", "capa", "psync2",
 	})))
 	if err != nil {
 		return err
-	}
-
-	buf = make([]byte, 1024)
-	_, err = conn.Read(buf)
-	if err != nil {
-		return err
-	}
-	if string(buf[:n]) != "+OK\r\n" {
-		return fmt.Errorf("expected %s, got %s", "+OK\r\n", string(buf[:n]))
 	}
 	return nil
 }
@@ -102,15 +85,48 @@ func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 		return err
 	}
 
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return err
-	}
-	if !strings.HasPrefix(string(buf[:n]), fullresync) {
-		return fmt.Errorf("expected resp to start with %s, got %s", fullresync, buf[:n])
-	}
-	go r.handleConnection(conn)
-
 	return nil
+}
+
+type syncList struct {
+	pingDone        bool
+	firstOkDone     bool
+	secondOkDone    bool
+	fullresyncDone  bool
+	replicaSyncDone bool
+}
+
+func (s *syncList) update(response string) {
+	if s.replicaSyncDone {
+		return
+	}
+	respLower := strings.ToLower(response)
+	if respLower == "pong" {
+		s.pingDone = true
+	}
+	if !s.pingDone {
+		return
+	}
+	if respLower == "ok" {
+		if !s.firstOkDone {
+			s.firstOkDone = true
+			return
+		}
+		s.secondOkDone = true
+	}
+	if !(s.firstOkDone && s.secondOkDone) {
+		return
+	}
+	if strings.HasPrefix(respLower, "fullresync") {
+		s.fullresyncDone = true
+	}
+	if !s.fullresyncDone {
+		return
+	}
+
+	s.completeSync()
+}
+
+func (s *syncList) completeSync() {
+	s.replicaSyncDone = true
 }

@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
@@ -31,7 +32,8 @@ func NewCommandRegistry() CommandRegistry {
 }
 
 func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
-	handler, ok := cr.Commands[cmd.CMD]
+	cmdLower := strings.ToLower(cmd.CMD)
+	handler, ok := cr.Commands[cmdLower]
 	if !ok {
 		return fmt.Errorf("%s not a valid command", cmd.CMD)
 	}
@@ -40,7 +42,7 @@ func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
 		handler.Handle(cmd.ARGS, ctx, writeChan)
 		close(writeChan)
 	}()
-	if canWrite(ctx) {
+	if canRespond(ctx, cmd) {
 		for b := range writeChan {
 			utils.WriteToConnection(ctx.Conn, b)
 		}
@@ -51,7 +53,7 @@ func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
 }
 
 func propagateCommands(handler CommandHandler, cmd utils.Command, ctx *utils.Context) {
-	if ctx.ReplicationInfo.Role != utils.MASTER {
+	if ctx.ReplicationInfo.Role != utils.ROLE_MASTER {
 		return
 	}
 	if handler.IsWriteCommand() {
@@ -61,9 +63,10 @@ func propagateCommands(handler CommandHandler, cmd utils.Command, ctx *utils.Con
 	}
 }
 
-func canWrite(ctx *utils.Context) bool {
-	if ctx.ReplicationInfo.Role == utils.MASTER {
+func canRespond(ctx *utils.Context, cmd utils.Command) bool {
+	if ctx.ConnType == utils.CONN_TYPE_CLIENT {
 		return true
 	}
+
 	return false
 }

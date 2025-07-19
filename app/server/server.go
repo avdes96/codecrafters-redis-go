@@ -1,8 +1,8 @@
 package server
 
 import (
+	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"sync"
@@ -18,7 +18,7 @@ type redisServer struct {
 	clients         map[net.Conn]bool
 	clientMutex     sync.RWMutex
 	EventQueue      chan utils.Event
-	replicaSyncDone chan struct{}
+	syncList        *syncList
 	parser          *protocol.Parser
 	commandRegistry command.CommandRegistry
 	store           map[int]map[string]utils.Entry
@@ -51,7 +51,7 @@ func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redi
 		listener:        l,
 		clients:         make(map[net.Conn]bool),
 		EventQueue:      make(chan utils.Event, 100),
-		replicaSyncDone: make(chan struct{}),
+		syncList:        &syncList{},
 		parser:          p,
 		commandRegistry: reg,
 		store:           s,
@@ -72,7 +72,7 @@ func (r *redisServer) Run() error {
 		if err != nil {
 			log.Fatalf("Error accepting connection: %s", err.Error())
 		}
-		go r.handleConnection(conn)
+		go r.handleConnection(conn, utils.CONN_TYPE_CLIENT)
 	}
 }
 
@@ -84,13 +84,14 @@ func (r *redisServer) handleEvent(event utils.Event) {
 }
 
 func (r *redisServer) eventLoop() {
-	<-r.replicaSyncDone
+	for !r.syncList.replicaSyncDone {
+	}
 	for event := range r.EventQueue {
 		r.handleEvent(event)
 	}
 }
 
-func (r *redisServer) handleConnection(conn net.Conn) {
+func (r *redisServer) handleConnection(conn net.Conn, t utils.ConnType) {
 	r.clientMutex.Lock()
 	r.clients[conn] = true
 	r.clientMutex.Unlock()
@@ -102,33 +103,47 @@ func (r *redisServer) handleConnection(conn net.Conn) {
 		r.clientMutex.Unlock()
 	}()
 
-	buffer := make([]byte, 1024)
+	reader := bufio.NewReader(conn)
 	for {
-		n, err := conn.Read(buffer)
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			log.Printf("Error reading from connection %s", err.Error())
-			continue
-		}
-
-		userInput := buffer[:n]
 		commandChan := make(chan utils.Command)
-		go r.parser.Parse(userInput, commandChan)
+		replicaRespChan := make(chan string)
+		go r.parser.Parse(reader, commandChan, replicaRespChan)
 		ctx := utils.Context{
 			Conn:            conn,
+			ConnType:        t,
 			CurrentDatabase: r.currentDatabase,
 			Store:           r.store,
 			ConfigParams:    r.configParams,
 			ReplicationInfo: r.replicationInfo,
 		}
-		for cmd := range commandChan {
-			r.EventQueue <- utils.Event{
-				Conn: conn,
-				Cmd:  cmd,
-				Ctx:  ctx,
+		r.handleChannels(commandChan, replicaRespChan, conn, ctx)
+
+	}
+
+}
+
+func (r *redisServer) handleChannels(commandChan chan utils.Command, replicaRespChan chan string, conn net.Conn, ctx utils.Context) {
+	for {
+		select {
+		case cmd, ok := <-commandChan:
+			if !ok {
+				commandChan = nil
+			} else {
+				r.EventQueue <- utils.Event{
+					Conn: conn,
+					Cmd:  cmd,
+					Ctx:  ctx,
+				}
 			}
+		case resp, ok := <-replicaRespChan:
+			if !ok {
+				replicaRespChan = nil
+			} else {
+				r.syncList.update(resp)
+			}
+		}
+		if commandChan == nil && replicaRespChan == nil {
+			return
 		}
 	}
 }

@@ -17,6 +17,7 @@ type Event struct {
 
 type Context struct {
 	Conn            net.Conn
+	ConnType        ConnType
 	CurrentDatabase int
 	Store           map[int]map[string]Entry
 	ConfigParams    map[string]string
@@ -36,8 +37,15 @@ type Command struct {
 type role int
 
 const (
-	MASTER role = iota
-	REPLICA
+	ROLE_MASTER role = iota
+	ROLE_REPLICA
+)
+
+type ConnType int
+
+const (
+	CONN_TYPE_CLIENT ConnType = iota
+	CONN_TYPE_REPLICA
 )
 
 func (r role) String() string {
@@ -56,10 +64,10 @@ type ReplicationInfo struct {
 const replicationIdLen int = 40
 
 func NewReplicationInfo(masterAddress string) *ReplicationInfo {
-	role := REPLICA
+	role := ROLE_REPLICA
 	formattedAddress := formatAddress(masterAddress)
 	if formattedAddress == "" {
-		role = MASTER
+		role = ROLE_MASTER
 	}
 	return &ReplicationInfo{
 		Role:          role,
@@ -71,7 +79,7 @@ func NewReplicationInfo(masterAddress string) *ReplicationInfo {
 }
 
 func (r *ReplicationInfo) AddReplica(c net.Conn) {
-	if r.Role != MASTER {
+	if r.Role != ROLE_MASTER {
 		return
 	}
 	r.Replicas[c] = true

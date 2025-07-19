@@ -1,7 +1,9 @@
 package protocol
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -15,115 +17,143 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-func (p *Parser) Parse(b []byte, commandChan chan utils.Command) {
-	defer close(commandChan)
-	idx := 0
-	var cmd string
-	var args []string
-	var err error
-	for idx < len(b) {
-		cmd, args, idx, err = p.ParseInputToCommandAndArgs(b, idx)
-		if err != nil {
-			log.Printf("Error parsing input: %s", err)
+const crlf string = "\r\n"
+
+func (p *Parser) Parse(r io.Reader, commandChan chan utils.Command, replicaResponseChan chan string) {
+	defer func() {
+		close(commandChan)
+		close(replicaResponseChan)
+	}()
+	reader := bufio.NewReader(r)
+	for {
+		prefix, err := reader.Peek(1)
+		if err == io.EOF {
+			return
+		} else if err != nil {
+			log.Printf("peek error: %v", err)
+			return
+		}
+
+		var cmd utils.Command
+		var str string
+		switch prefix[0] {
+		case '*':
+			cmd, err = p.parseArrayBulkStrings(reader)
+		case '+':
+			str, err = p.parseSimpleString(reader)
+			if err != nil {
+				log.Printf("Error in parsing command: %s", err)
+			}
+			if isReplicaResp(str) {
+				replicaResponseChan <- str
+				continue
+			}
+			commandChan <- utils.Command{CMD: str}
+
+		case '$':
+			str, err = p.parseBulkString(reader)
+			if err != nil {
+				log.Printf("Error in parsing command: %s", err)
+				return
+			}
+			if isRdbFile(str) {
+				replicaResponseChan <- "rdbFileReceived"
+			}
 			continue
+		default:
+			err = fmt.Errorf("command does not start with valid char: %b", prefix[0])
+			if _, err := reader.Discard(1); err != nil {
+				return
+			}
 		}
-		commandChan <- utils.Command{CMD: cmd, ARGS: args}
-	}
-}
-
-func (p *Parser) ParseInputToCommandAndArgs(b []byte, startIdx int) (string, []string, int, error) {
-	switch b[startIdx] {
-	case '*':
-		strs, idx, err := p.parseArrayBulkStrings(b, startIdx)
 		if err != nil {
-			return "", []string{}, -1, err
+			log.Printf("Error in parsing command: %s", err)
+			return
 		}
-		return strings.ToLower(strs[0]), strs[1:], idx, nil
-	case '+':
-		str, idx, err := p.parseSimpleString(b, startIdx)
-		if err != nil {
-			return "", []string{}, -1, err
-		}
-		return strings.ToLower(str), []string{}, idx, nil
-	default:
-		return "", []string{}, -1, fmt.Errorf("command does not start with valid char: %s", b)
+		commandChan <- cmd
 	}
 }
 
-func (p *Parser) parseSimpleString(b []byte, startIdx int) (string, int, error) {
-	if b[startIdx] != '+' {
-		return "", -1, fmt.Errorf("simple string doesn't start with +: %s", b)
+func isReplicaResp(str string) bool {
+	respStart := strings.Split(str, " ")[0]
+	lower := strings.ToLower(respStart)
+	resps := map[string]struct{}{
+		"pong":       struct{}{},
+		"ok":         struct{}{},
+		"fullresync": struct{}{},
 	}
-	str := ""
-	i := startIdx + 1
-	for i < len(b) {
-		if b[i] == '\n' && i > 0 && b[i-1] == '\r' {
-			return str, i + 1, nil
-		}
-		str += string(b[i])
-		i++
+	if _, ok := resps[lower]; ok {
+		return true
 	}
-	return "", -1, fmt.Errorf("simple string does not end with crlf: %s", b)
+	return false
 }
 
-func (p *Parser) parseArrayBulkStrings(b []byte, startIdx int) ([]string, int, error) {
-	if b[startIdx] != '*' {
-		return []string{}, -1, fmt.Errorf("array of bulk strs doesn't start with *: %s", b)
-	}
-	i := startIdx + 1
-	arraySize, i, err := p.parseIntFromByteArray(b, i)
+func isRdbFile(str string) bool {
+	return strings.HasPrefix(str, "REDIS")
+}
+
+func (p *Parser) parseSimpleString(r *bufio.Reader) (string, error) {
+	line, err := r.ReadString('\n')
 	if err != nil {
-		return []string{}, -1, err
+		return "", err
+	}
+	if line[0] != '+' {
+		return "", fmt.Errorf("simple string doesn't start with +: %s", line)
+	}
+	return strings.TrimSuffix(line[1:], crlf), nil
+}
+
+func (p *Parser) parseArrayBulkStrings(r *bufio.Reader) (utils.Command, error) {
+	header, err := r.ReadString('\n')
+	if err != nil {
+		return utils.Command{}, err
+	}
+	if header[0] != '*' {
+		return utils.Command{}, fmt.Errorf("array of bulk strs doesn't start with *: %s", header)
+	}
+	arraySize, err := strconv.Atoi(strings.TrimSuffix(header[1:], crlf))
+	if err != nil {
+		return utils.Command{}, err
 	}
 	arr := make([]string, arraySize)
-	for arrIdx := range arraySize {
-		s, newIdx, err := p.parseStringFromArray(b, i)
+	for arrIdx := 0; arrIdx < arraySize; arrIdx++ {
+		str, err := p.parseBulkString(r)
 		if err != nil {
-			return []string{}, -1, err
+			return utils.Command{}, err
 		}
-		arr[arrIdx] = s
-		i = newIdx
+		arr[arrIdx] = str
 	}
-	return arr, i, nil
+	return utils.Command{CMD: arr[0], ARGS: arr[1:]}, nil
 }
 
-func (p *Parser) parseStringFromArray(b []byte, idx int) (string, int, error) {
-	if b[idx] != '$' {
-		return "", -1, fmt.Errorf("string does not start with $: %s", b)
-	}
-	strLen, idx, err := p.parseIntFromByteArray(b, idx+1)
+func (p *Parser) parseBulkString(r *bufio.Reader) (string, error) {
+	stringHeader, err := r.ReadString('\n')
 	if err != nil {
-		return "", -1, err
+		return "", err
 	}
-	str := ""
-	for range strLen {
-		str += string(b[idx])
-		idx++
+	if stringHeader[0] != '$' {
+		return "", fmt.Errorf("str doesn't start with *: %s", stringHeader)
 	}
-	if (idx+1 >= len(b)) || b[idx] != '\r' || b[idx+1] != '\n' {
-		return "", -1, fmt.Errorf("string not followed by crlf %s", b)
+	strLen, err := strconv.Atoi(strings.TrimSuffix(stringHeader[1:], crlf))
+	if err != nil {
+		return "", err
 	}
-	return str, idx + 2, nil
-}
+	strBuffer := make([]byte, strLen)
+	if _, err := io.ReadFull(r, strBuffer); err != nil {
+		return "", err
+	}
 
-func (p *Parser) parseIntFromByteArray(b []byte, idx int) (int, int, error) {
-	intString := ""
-	for {
-		if idx >= len(b) {
-			return -1, -1, fmt.Errorf("int not followed by crlf %s", b)
-		}
-		if !(b[idx] >= '0' && b[idx] <= '9') {
-			break
-		}
-		intString += string(b[idx])
-		idx++
-	}
-	parsedInt, err := strconv.Atoi(intString)
+	str := string(strBuffer)
+
+	buf, err := r.Peek(2)
 	if err != nil {
-		return -1, -1, err
+		return "", fmt.Errorf("unable to peek: %w", err)
 	}
-	if (idx+1 >= len(b)) || b[idx] != '\r' || b[idx+1] != '\n' {
-		return -1, -1, fmt.Errorf("int not followed by crlf %s", b)
+
+	if buf[0] == '\r' && buf[1] == '\n' {
+		if _, err := r.Discard(2); err != nil {
+			return "", err
+		}
 	}
-	return parsedInt, idx + 2, nil
+	return str, nil
 }
