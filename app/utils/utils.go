@@ -30,8 +30,9 @@ type Entry struct {
 }
 
 type Command struct {
-	CMD  string
-	ARGS []string
+	CMD     string
+	ARGS    []string
+	ByteLen int
 }
 
 type role int

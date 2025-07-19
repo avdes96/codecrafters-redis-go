@@ -40,7 +40,7 @@ func (p *Parser) Parse(r io.Reader, commandChan chan utils.Command, replicaRespo
 		case '*':
 			cmd, err = p.parseArrayBulkStrings(reader)
 		case '+':
-			str, err = p.parseSimpleString(reader)
+			str, numBytes, err := p.parseSimpleString(reader)
 			if err != nil {
 				log.Printf("Error in parsing command: %s", err)
 			}
@@ -48,10 +48,10 @@ func (p *Parser) Parse(r io.Reader, commandChan chan utils.Command, replicaRespo
 				replicaResponseChan <- str
 				continue
 			}
-			commandChan <- utils.Command{CMD: str}
+			commandChan <- utils.Command{CMD: str, ByteLen: numBytes}
 
 		case '$':
-			str, err = p.parseBulkString(reader)
+			str, _, err = p.parseBulkString(reader)
 			if err != nil {
 				log.Printf("Error in parsing command: %s", err)
 				return
@@ -92,18 +92,19 @@ func isRdbFile(str string) bool {
 	return strings.HasPrefix(str, "REDIS")
 }
 
-func (p *Parser) parseSimpleString(r *bufio.Reader) (string, error) {
+func (p *Parser) parseSimpleString(r *bufio.Reader) (string, int, error) {
 	line, err := r.ReadString('\n')
 	if err != nil {
-		return "", err
+		return "", -1, err
 	}
 	if line[0] != '+' {
-		return "", fmt.Errorf("simple string doesn't start with +: %s", line)
+		return "", 1, fmt.Errorf("simple string doesn't start with +: %s", line)
 	}
-	return strings.TrimSuffix(line[1:], crlf), nil
+	return strings.TrimSuffix(line[1:], crlf), len(line), nil
 }
 
 func (p *Parser) parseArrayBulkStrings(r *bufio.Reader) (utils.Command, error) {
+	numBytes := 0
 	header, err := r.ReadString('\n')
 	if err != nil {
 		return utils.Command{}, err
@@ -111,49 +112,54 @@ func (p *Parser) parseArrayBulkStrings(r *bufio.Reader) (utils.Command, error) {
 	if header[0] != '*' {
 		return utils.Command{}, fmt.Errorf("array of bulk strs doesn't start with *: %s", header)
 	}
+	numBytes += len(header)
 	arraySize, err := strconv.Atoi(strings.TrimSuffix(header[1:], crlf))
 	if err != nil {
 		return utils.Command{}, err
 	}
 	arr := make([]string, arraySize)
 	for arrIdx := 0; arrIdx < arraySize; arrIdx++ {
-		str, err := p.parseBulkString(r)
+		str, strBytes, err := p.parseBulkString(r)
+		numBytes += strBytes
 		if err != nil {
 			return utils.Command{}, err
 		}
 		arr[arrIdx] = str
 	}
-	return utils.Command{CMD: arr[0], ARGS: arr[1:]}, nil
+	return utils.Command{CMD: arr[0], ARGS: arr[1:], ByteLen: numBytes}, nil
 }
 
-func (p *Parser) parseBulkString(r *bufio.Reader) (string, error) {
+func (p *Parser) parseBulkString(r *bufio.Reader) (string, int, error) {
+	numBytes := 0
 	stringHeader, err := r.ReadString('\n')
 	if err != nil {
-		return "", err
+		return "", -1, err
 	}
 	if stringHeader[0] != '$' {
-		return "", fmt.Errorf("str doesn't start with *: %s", stringHeader)
+		return "", -1, fmt.Errorf("str doesn't start with *: %s", stringHeader)
 	}
+	numBytes += len(stringHeader)
 	strLen, err := strconv.Atoi(strings.TrimSuffix(stringHeader[1:], crlf))
 	if err != nil {
-		return "", err
+		return "", -1, err
 	}
 	strBuffer := make([]byte, strLen)
 	if _, err := io.ReadFull(r, strBuffer); err != nil {
-		return "", err
+		return "", -1, err
 	}
+	numBytes += strLen
 
 	str := string(strBuffer)
-
 	buf, err := r.Peek(2)
 	if err != nil {
-		return "", fmt.Errorf("unable to peek: %w", err)
+		return "", -1, fmt.Errorf("unable to peek: %w", err)
 	}
 
 	if buf[0] == '\r' && buf[1] == '\n' {
+		numBytes += 2
 		if _, err := r.Discard(2); err != nil {
-			return "", err
+			return "", -1, err
 		}
 	}
-	return str, nil
+	return str, numBytes, nil
 }

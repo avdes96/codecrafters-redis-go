@@ -47,7 +47,9 @@ func (cr *CommandRegistry) Handle(cmd utils.Command, ctx *utils.Context) error {
 			utils.WriteToConnection(ctx.Conn, b)
 		}
 	}
-
+	if ctx.ReplicationInfo.Role == utils.ROLE_REPLICA && ctx.ConnType == utils.CONN_TYPE_REPLICA {
+		ctx.ReplicationInfo.Offset += cmd.ByteLen
+	}
 	propagateCommands(handler, cmd, ctx)
 	return nil
 }
