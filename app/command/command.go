@@ -67,6 +67,8 @@ func canRespond(ctx *utils.Context, cmd utils.Command) bool {
 	if ctx.ConnType == utils.CONN_TYPE_CLIENT {
 		return true
 	}
-
+	if strings.ToLower(cmd.CMD) == "replconf" && isGetackStar(cmd.ARGS) {
+		return true
+	}
 	return false
 }
