@@ -28,6 +28,7 @@ func NewCommandRegistry() CommandRegistry {
 	m["info"] = &Info{}
 	m["replconf"] = &Replconf{}
 	m["psync"] = &Psync{}
+	m["wait"] = &Wait{}
 	return CommandRegistry{Commands: m}
 }
 

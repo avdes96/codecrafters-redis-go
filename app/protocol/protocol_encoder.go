@@ -32,6 +32,11 @@ func ToBulkString(s string) []byte {
 	return ret
 }
 
+func ToRespInt(i int) []byte {
+	respInt := ":" + strconv.Itoa(i) + crlf
+	return []byte(respInt)
+}
+
 func appendCrlf(b []byte) []byte {
 	b = append(b, '\r')
 	b = append(b, '\n')
