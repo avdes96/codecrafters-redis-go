@@ -1,13 +1,13 @@
 package command
 
 import (
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Keys struct{}
 
-func (k *Keys) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (k *Keys) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	if len(args) != 1 || args[0] != "*" {
 		writeChan <- []byte("Usage: KEYS *")
 		return
@@ -21,6 +21,6 @@ func (k *Keys) Handle(args []string, ctx *utils.Context, writeChan chan []byte) 
 	writeChan <- protocol.ToArrayBulkStrings(keys)
 }
 
-func (k *Keys) IsWriteCommand() bool {
+func (k *Keys) CanPropogateCommand(args []string) bool {
 	return false
 }

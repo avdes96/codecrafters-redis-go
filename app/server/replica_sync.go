@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 )
 
 func (r *redisServer) SyncWithMaster() {
-	if r.replicationInfo.Role == utils.ROLE_MASTER {
+	if r.replicationInfo.Role == replication.ROLE_MASTER {
 		r.syncList.completeSync()
 		return
 	}
@@ -20,7 +20,7 @@ func (r *redisServer) SyncWithMaster() {
 		return
 	}
 
-	go r.handleConnection(conn, utils.CONN_TYPE_REPLICA)
+	go r.handleConnection(conn, replication.CONN_TYPE_REPLICA)
 	if err = r.initiateConnection(conn); err != nil {
 		log.Printf("Error initiating connection with master server: %s", err)
 		return
@@ -74,8 +74,6 @@ func (r *redisServer) configureReplica(conn net.Conn) error {
 	}
 	return nil
 }
-
-const fullresync string = "+FULLRESYNC"
 
 func (r *redisServer) initialiseReplicationStream(conn net.Conn) error {
 	_, err := conn.Write([]byte(protocol.ToArrayBulkStrings([]string{

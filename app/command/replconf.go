@@ -4,15 +4,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Replconf struct{}
 
-func (r *Replconf) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (r *Replconf) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	if isGetackStar(args) {
-		offsetStr := strconv.Itoa(ctx.ReplicationInfo.Offset)
+		offsetStr := strconv.Itoa(ctx.ReplicationInfo.GetServerOffset())
 		strs := []string{"REPLCONF", "ACK", offsetStr}
 		writeChan <- protocol.ToArrayBulkStrings(strs)
 		return
@@ -24,6 +24,6 @@ func isGetackStar(args []string) bool {
 	return len(args) == 2 && strings.ToLower(args[0]) == "getack" && args[1] == "*"
 }
 
-func (r *Replconf) IsWriteCommand() bool {
+func (r *Replconf) CanPropogateCommand(args []string) bool {
 	return false
 }

@@ -3,13 +3,13 @@ package command
 import (
 	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Get struct{}
 
-func (g *Get) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (g *Get) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	if len(args) != 1 {
 		writeChan <- []byte("Usage: GET <key>")
 		return
@@ -27,6 +27,6 @@ func (g *Get) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
 	writeChan <- protocol.ToBulkString(entry.Value)
 }
 
-func (g *Get) IsWriteCommand() bool {
+func (g *Get) CanPropogateCommand(args []string) bool {
 	return false
 }

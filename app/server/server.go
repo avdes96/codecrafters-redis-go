@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/rdb"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
@@ -17,17 +21,17 @@ type redisServer struct {
 	listener        net.Listener
 	clients         map[net.Conn]bool
 	clientMutex     sync.RWMutex
-	EventQueue      chan utils.Event
+	EventQueue      event.EventQueue
 	syncList        *syncList
 	parser          *protocol.Parser
 	commandRegistry command.CommandRegistry
 	store           map[int]map[string]utils.Entry
 	configParams    map[string]string
 	currentDatabase int
-	replicationInfo *utils.ReplicationInfo
+	replicationInfo *replication.ReplicationInfo
 }
 
-func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redisServer, error) {
+func New(configParams map[string]string, replInfo *replication.ReplicationInfo) (*redisServer, error) {
 	portNum, ok := configParams["port"]
 	if !ok {
 		log.Fatal("Error fetching port")
@@ -50,7 +54,7 @@ func New(configParams map[string]string, replInfo *utils.ReplicationInfo) (*redi
 	return &redisServer{
 		listener:        l,
 		clients:         make(map[net.Conn]bool),
-		EventQueue:      make(chan utils.Event, 100),
+		EventQueue:      *event.NewEventQueue(),
 		syncList:        &syncList{},
 		parser:          p,
 		commandRegistry: reg,
@@ -72,11 +76,11 @@ func (r *redisServer) Run() error {
 		if err != nil {
 			log.Fatalf("Error accepting connection: %s", err.Error())
 		}
-		go r.handleConnection(conn, utils.CONN_TYPE_CLIENT)
+		go r.handleConnection(conn, replication.CONN_TYPE_CLIENT)
 	}
 }
 
-func (r *redisServer) handleEvent(event utils.Event) {
+func (r *redisServer) handleEvent(event *event.Event) {
 	err := r.commandRegistry.Handle(event.Cmd, &event.Ctx)
 	if err != nil {
 		log.Printf("Error handling command: %s", err)
@@ -86,12 +90,14 @@ func (r *redisServer) handleEvent(event utils.Event) {
 func (r *redisServer) eventLoop() {
 	for !r.syncList.replicaSyncDone {
 	}
-	for event := range r.EventQueue {
+	for r.EventQueue.IsLocked() {
+	}
+	for event := range r.EventQueue.Queue {
 		r.handleEvent(event)
 	}
 }
 
-func (r *redisServer) handleConnection(conn net.Conn, t utils.ConnType) {
+func (r *redisServer) handleConnection(conn net.Conn, t replication.ConnType) {
 	r.clientMutex.Lock()
 	r.clients[conn] = true
 	r.clientMutex.Unlock()
@@ -108,39 +114,50 @@ func (r *redisServer) handleConnection(conn net.Conn, t utils.ConnType) {
 		commandChan := make(chan utils.Command)
 		replicaRespChan := make(chan string)
 		go r.parser.Parse(reader, commandChan, replicaRespChan)
-		ctx := utils.Context{
+		ctx := event.Context{
 			Conn:            conn,
 			ConnType:        t,
 			CurrentDatabase: r.currentDatabase,
 			Store:           r.store,
 			ConfigParams:    r.configParams,
 			ReplicationInfo: r.replicationInfo,
+			EventQueue:      &r.EventQueue,
 		}
 		r.handleChannels(commandChan, replicaRespChan, conn, ctx)
-
 	}
 
 }
 
-func (r *redisServer) handleChannels(commandChan chan utils.Command, replicaRespChan chan string, conn net.Conn, ctx utils.Context) {
+func (r *redisServer) handleChannels(commandChan chan utils.Command, replicaRespChan chan string, conn net.Conn, ctx event.Context) {
 	for {
 		select {
 		case cmd, ok := <-commandChan:
 			if !ok {
 				commandChan = nil
-			} else {
-				r.EventQueue <- utils.Event{
-					Conn: conn,
-					Cmd:  cmd,
-					Ctx:  ctx,
-				}
+				break
 			}
+			r.EventQueue.Add(&event.Event{
+				Conn: conn,
+				Cmd:  cmd,
+				Ctx:  ctx,
+			})
+
 		case resp, ok := <-replicaRespChan:
 			if !ok {
 				replicaRespChan = nil
-			} else {
-				r.syncList.update(resp)
+				break
 			}
+
+			parts := strings.Split(strings.ToLower(resp), " ")
+			if len(parts) >= 3 && parts[0] == "replconf" && parts[1] == "ack" {
+				offset, err := strconv.Atoi(parts[2])
+				if err != nil {
+					continue
+				}
+				r.replicationInfo.UpdateReplicaOffset(conn, offset)
+				break
+			}
+			r.syncList.update(resp)
 		}
 		if commandChan == nil && replicaRespChan == nil {
 			return

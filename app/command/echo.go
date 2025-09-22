@@ -1,13 +1,13 @@
 package command
 
 import (
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Echo struct{}
 
-func (e *Echo) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (e *Echo) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	var ret string
 	if len(args) == 1 {
 		ret = args[0]
@@ -17,6 +17,6 @@ func (e *Echo) Handle(args []string, ctx *utils.Context, writeChan chan []byte) 
 	writeChan <- protocol.ToBulkString(ret)
 }
 
-func (e *Echo) IsWriteCommand() bool {
+func (e *Echo) CanPropogateCommand(args []string) bool {
 	return false
 }

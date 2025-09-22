@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/codecrafters-io/redis-starter-go/app/logger"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/server"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	configParams["dbfilename"] = *dbfilename
 	configParams["port"] = *port
 
-	replicationInfo := utils.NewReplicationInfo(*replicaof)
+	replicationInfo := replication.NewReplicationInfo(*replicaof)
 	r, err := server.New(configParams, replicationInfo)
 	if err != nil {
 		log.Fatalf("Failed to create server: %s", err)

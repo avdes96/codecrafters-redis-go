@@ -3,13 +3,13 @@ package command
 import (
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Config struct{}
 
-func (c *Config) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (c *Config) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	var ret []byte
 	switch strings.ToLower(args[0]) {
 	case "get":
@@ -31,6 +31,6 @@ func (c *Config) Handle(args []string, ctx *utils.Context, writeChan chan []byte
 	writeChan <- ret
 }
 
-func (c *Config) IsWriteCommand() bool {
+func (c *Config) CanPropogateCommand(args []string) bool {
 	return false
 }

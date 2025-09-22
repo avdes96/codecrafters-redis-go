@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
 
 type Set struct{}
 
-func (s *Set) Handle(args []string, ctx *utils.Context, writeChan chan []byte) {
+func (s *Set) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 	if !(len(args) == 2 || len(args) == 4) {
 		writeUsageString(ctx.Conn)
 		return
@@ -43,6 +44,6 @@ func writeUsageString(conn net.Conn) {
 	utils.WriteToConnection(conn, []byte(usageStr))
 }
 
-func (s *Set) IsWriteCommand() bool {
+func (s *Set) CanPropogateCommand(args []string) bool {
 	return true
 }
