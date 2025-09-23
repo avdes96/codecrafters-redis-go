@@ -32,6 +32,7 @@ func NewCommandRegistry() CommandRegistry {
 	m["psync"] = &Psync{}
 	m["wait"] = &Wait{}
 	m["type"] = &Type{}
+	m["xadd"] = &Xadd{}
 	return CommandRegistry{Commands: m}
 }
 

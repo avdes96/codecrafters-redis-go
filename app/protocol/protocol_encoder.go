@@ -9,6 +9,10 @@ func ToSimpleString(str string) []byte {
 	return []byte(fmt.Sprintf("+%s\r\n", str))
 }
 
+func ToError(str string) []byte {
+	return []byte(fmt.Sprintf("-%s\r\n", str))
+}
+
 func ToArrayBulkStrings(strs []string) []byte {
 	ret := []byte{}
 	ret = append(ret, '*')
