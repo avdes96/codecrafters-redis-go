@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/entry"
 )
 
 type Rdb struct {
 	header   RdbHeader
 	metadata map[string]string
-	Database map[int]map[string]utils.Entry
+	Database map[int]map[string]entry.Entry
 	checksum string
 }
 
@@ -125,8 +125,8 @@ func getMetadata(reader *bufio.Reader) (map[string]string, error) {
 	return metadata, nil
 }
 
-func getDatabase(reader *bufio.Reader) (map[int]map[string]utils.Entry, error) {
-	database := make(map[int]map[string]utils.Entry)
+func getDatabase(reader *bufio.Reader) (map[int]map[string]entry.Entry, error) {
+	database := make(map[int]map[string]entry.Entry)
 	for {
 		bs, err := reader.Peek(1)
 		if err != nil {
@@ -144,7 +144,7 @@ func getDatabase(reader *bufio.Reader) (map[int]map[string]utils.Entry, error) {
 	return database, nil
 }
 
-func getDatabaseSection(reader *bufio.Reader) (int, map[string]utils.Entry, error) {
+func getDatabaseSection(reader *bufio.Reader) (int, map[string]entry.Entry, error) {
 	b, err := reader.ReadByte()
 	if err != nil {
 		return -1, nil, err
@@ -169,7 +169,7 @@ func getDatabaseSection(reader *bufio.Reader) (int, map[string]utils.Entry, erro
 			return -1, nil, err
 		}
 	}
-	databaseSection := make(map[string]utils.Entry)
+	databaseSection := make(map[string]entry.Entry)
 	for {
 		next, err := reader.Peek(1)
 		if err != nil {
@@ -182,12 +182,12 @@ func getDatabaseSection(reader *bufio.Reader) (int, map[string]utils.Entry, erro
 		if err != nil {
 			return -1, nil, err
 		}
-		databaseSection[key] = *entry
+		databaseSection[key] = entry
 	}
 	return dbIdx, databaseSection, nil
 }
 
-func getEntry(reader *bufio.Reader) (string, *utils.Entry, error) {
+func getEntry(reader *bufio.Reader) (string, entry.Entry, error) {
 	var expiryTime time.Time
 	next, err := reader.Peek(1)
 	if err != nil {
@@ -211,7 +211,7 @@ func getEntry(reader *bufio.Reader) (string, *utils.Entry, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	return key, &utils.Entry{Value: val, ExpiryTime: expiryTime}, nil
+	return key, entry.NewRedisString(val, expiryTime), nil
 }
 
 func getExpiryTime(reader *bufio.Reader) (time.Time, error) {

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/command"
+	"github.com/codecrafters-io/redis-starter-go/app/entry"
 	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/rdb"
@@ -25,7 +26,7 @@ type redisServer struct {
 	syncList        *syncList
 	parser          *protocol.Parser
 	commandRegistry command.CommandRegistry
-	store           map[int]map[string]utils.Entry
+	store           map[int]map[string]entry.Entry
 	configParams    map[string]string
 	currentDatabase int
 	replicationInfo *replication.ReplicationInfo
@@ -45,9 +46,9 @@ func New(configParams map[string]string, replInfo *replication.ReplicationInfo) 
 	reg := command.NewCommandRegistry()
 
 	rdbFile, _ := rdb.NewRdbFromFile(configParams["dir"], configParams["dbfilename"])
-	var s map[int]map[string]utils.Entry
+	var s map[int]map[string]entry.Entry
 	if rdbFile == nil {
-		s = make(map[int]map[string]utils.Entry)
+		s = make(map[int]map[string]entry.Entry)
 	} else {
 		s = rdbFile.Database
 	}

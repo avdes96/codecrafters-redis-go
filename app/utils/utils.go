@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-type Entry struct {
-	Value      string
-	ExpiryTime time.Time
-}
-
 type Command struct {
 	CMD     string
 	ARGS    []string

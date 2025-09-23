@@ -12,11 +12,11 @@ func (t *Type) Handle(args []string, ctx *event.Context, writeChan chan []byte) 
 		writeChan <- []byte("Usage: TYPE <key>")
 		return
 	}
-	if _, ok := ctx.Store[ctx.CurrentDatabase][args[0]]; !ok {
-		writeChan <- []byte(protocol.ToSimpleString("none"))
+	if val, ok := ctx.Store[ctx.CurrentDatabase][args[0]]; ok {
+		writeChan <- []byte(protocol.ToSimpleString(val.Type()))
 		return
 	}
-	writeChan <- []byte(protocol.ToSimpleString("string"))
+	writeChan <- []byte(protocol.ToSimpleString("none"))
 }
 
 func (t *Type) CanPropogateCommand(args []string) bool {

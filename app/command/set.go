@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/app/entry"
 	"github.com/codecrafters-io/redis-starter-go/app/event"
 	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
@@ -32,9 +33,9 @@ func (s *Set) Handle(args []string, ctx *event.Context, writeChan chan []byte) {
 		expTime = time.Now().Add(time.Millisecond * time.Duration(expiryDelta))
 	}
 	if _, ok := ctx.Store[ctx.CurrentDatabase]; !ok {
-		ctx.Store[ctx.CurrentDatabase] = make(map[string]utils.Entry)
+		ctx.Store[ctx.CurrentDatabase] = make(map[string]entry.Entry)
 	}
-	ctx.Store[ctx.CurrentDatabase][args[0]] = utils.Entry{Value: args[1], ExpiryTime: expTime}
+	ctx.Store[ctx.CurrentDatabase][args[0]] = entry.NewRedisString(args[1], expTime)
 	writeChan <- protocol.OkResp()
 }
 

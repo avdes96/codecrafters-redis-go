@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/app/utils"
+	"github.com/codecrafters-io/redis-starter-go/app/entry"
 )
 
 func TestFileParser(t *testing.T) {
@@ -17,11 +17,11 @@ func TestFileParser(t *testing.T) {
 		t.Errorf("Error creating rdb file: %s", err)
 	}
 
-	expectedDatabase := make(map[int]map[string]utils.Entry)
-	expectedDatabase[0] = make(map[string]utils.Entry)
-	expectedDatabase[0]["foobar"] = utils.Entry{Value: "bazqux"}
-	expectedDatabase[0]["foo"] = utils.Entry{Value: "bar", ExpiryTime: time.UnixMilli(1713824559637)}
-	expectedDatabase[0]["abcde"] = utils.Entry{Value: "wxyz", ExpiryTime: time.Unix(1714089298, 0)}
+	expectedDatabase := make(map[int]map[string]entry.Entry)
+	expectedDatabase[0] = make(map[string]entry.Entry)
+	expectedDatabase[0]["foobar"] = entry.NewRedisString("bazqux", time.Time{})
+	expectedDatabase[0]["foo"] = entry.NewRedisString("bar", time.UnixMilli(1713824559637))
+	expectedDatabase[0]["abcde"] = entry.NewRedisString("wxyz", time.Unix(1714089298, 0))
 	expected := Rdb{
 		header:   RdbHeader{magic: "REDIS", version: "0011"},
 		metadata: map[string]string{"redis-ver": "6.0.16"},
@@ -106,8 +106,8 @@ func getDummyFileReader() *bufio.Reader {
 }
 
 func databasesEqual(
-	db1 map[int]map[string]utils.Entry,
-	db2 map[int]map[string]utils.Entry,
+	db1 map[int]map[string]entry.Entry,
+	db2 map[int]map[string]entry.Entry,
 ) (bool, error) {
 	if len(db1) != len(db2) {
 		return false,
@@ -126,7 +126,7 @@ func databasesEqual(
 	return true, nil
 }
 
-func databaseSectionsEqual(dbSect1 map[string]utils.Entry, dbSect2 map[string]utils.Entry) (bool, error) {
+func databaseSectionsEqual(dbSect1 map[string]entry.Entry, dbSect2 map[string]entry.Entry) (bool, error) {
 	if len(dbSect1) != len(dbSect2) {
 		return false,
 			fmt.Errorf("Expected section is of len %d; got len %d", len(dbSect1), len(dbSect2))
@@ -143,6 +143,14 @@ func databaseSectionsEqual(dbSect1 map[string]utils.Entry, dbSect2 map[string]ut
 	return true, nil
 }
 
-func entrySame(a utils.Entry, b utils.Entry) bool {
-	return a.Value == b.Value && a.ExpiryTime == b.ExpiryTime
+func entrySame(a entry.Entry, b entry.Entry) bool {
+	A, ok := a.(*entry.RedisString)
+	if !ok {
+		return false
+	}
+	B, ok := a.(*entry.RedisString)
+	if !ok {
+		return false
+	}
+	return A.Value() == B.Value() && A.ExpiryTime().Equal(B.ExpiryTime())
 }

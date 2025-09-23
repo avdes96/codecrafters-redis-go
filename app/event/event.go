@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/codecrafters-io/redis-starter-go/app/entry"
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/utils"
 )
@@ -53,7 +54,7 @@ type Context struct {
 	Conn            net.Conn
 	ConnType        replication.ConnType
 	CurrentDatabase int
-	Store           map[int]map[string]utils.Entry
+	Store           map[int]map[string]entry.Entry
 	ConfigParams    map[string]string
 	ReplicationInfo *replication.ReplicationInfo
 	EventQueue      *EventQueue
