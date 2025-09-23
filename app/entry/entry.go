@@ -3,7 +3,6 @@ package entry
 import "time"
 
 type Entry interface {
-	ExpiryTime() time.Time
 	Type() string
 }
 
