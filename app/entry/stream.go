@@ -2,8 +2,8 @@ package entry
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/google/btree"
@@ -62,7 +62,7 @@ func NewStream() *Stream {
 }
 
 func (s *Stream) Add(idStr string, field string, value string) string {
-	id, errMsg := s.validateId(idStr)
+	id, errMsg := s.validateID(idStr)
 	if errMsg != "" {
 		return errMsg
 	}
@@ -87,18 +87,26 @@ func NewStreamID(m int, sn int) *streamID {
 	}
 }
 
-func (s *Stream) validateId(id string) (*streamID, string) {
-	parts := strings.Split(id, "-")
-	if len(parts) != 2 {
-		return nil, "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+func (s *Stream) validateID(id string) (*streamID, string) {
+	return s.validateFullID(id)
+}
+
+const invalidIDFormatStr string = "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+
+var fullIDRe = regexp.MustCompile(`^(\d+)-(\d+)$`)
+
+func (s *Stream) validateFullID(id string) (*streamID, string) {
+	match := fullIDRe.FindStringSubmatch(id)
+	if match == nil {
+		return nil, invalidIDFormatStr
 	}
-	millisecondsTime, err := strconv.Atoi(parts[0])
+	millisecondsTime, err := strconv.Atoi(match[1])
 	if err != nil {
-		return nil, "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+		return nil, invalidIDFormatStr
 	}
-	sequenceNumber, err := strconv.Atoi(parts[1])
+	sequenceNumber, err := strconv.Atoi(match[2])
 	if err != nil {
-		return nil, "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+		return nil, invalidIDFormatStr
 	}
 
 	if millisecondsTime < 0 || sequenceNumber < 0 || (millisecondsTime == 0 && sequenceNumber == 0) {
