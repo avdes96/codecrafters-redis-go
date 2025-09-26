@@ -29,11 +29,12 @@ func (x *Xadd) Handle(args []string, ctx *event.Context, writeChan chan []byte) 
 		writeChan <- protocol.ToError("WRONGTYPE entry at key is not a stream")
 		return
 	}
-	if msg := stream.Add(id, field, value); msg != "" {
-		writeChan <- protocol.ToError(msg)
+	streamID, errMsg := stream.Add(id, field, value)
+	if errMsg != "" {
+		writeChan <- protocol.ToError(errMsg)
 		return
 	}
-	writeChan <- protocol.ToBulkString(id)
+	writeChan <- protocol.ToBulkString(streamID.String())
 }
 
 func (x *Xadd) CanPropogateCommand(args []string) bool {

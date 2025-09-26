@@ -24,6 +24,10 @@ type Stream struct {
 	lock  sync.RWMutex
 }
 
+func (s *Stream) Type() string {
+	return "stream"
+}
+
 type StreamItem struct {
 	id     *streamID
 	fields map[string]string
@@ -61,10 +65,10 @@ func NewStream() *Stream {
 	}
 }
 
-func (s *Stream) Add(idStr string, field string, value string) string {
+func (s *Stream) Add(idStr string, field string, value string) (*streamID, string) {
 	id, errMsg := s.validateID(idStr)
 	if errMsg != "" {
-		return errMsg
+		return nil, errMsg
 	}
 	s.lock.Lock()
 	new := newStreamItem(id)
@@ -73,11 +77,7 @@ func (s *Stream) Add(idStr string, field string, value string) string {
 	s.lock.Unlock()
 
 	s.data.Get(new).(*StreamItem).AddField(field, value)
-	return ""
-}
-
-func (s *Stream) Type() string {
-	return "stream"
+	return new.id, ""
 }
 
 func NewStreamID(m int, sn int) *streamID {
@@ -87,35 +87,61 @@ func NewStreamID(m int, sn int) *streamID {
 	}
 }
 
-func (s *Stream) validateID(id string) (*streamID, string) {
-	return s.validateFullID(id)
-}
+var fullIDRe = regexp.MustCompile(`^(\d+)-(\d+)$`)
+var partialIDRe = regexp.MustCompile(`^(\d+)-\*$`)
 
 const invalidIDFormatStr string = "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+const invalidIDNotGreaterThanTopItem string = "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+const invalidIDNotGreaterThanZero string = "ERR The ID specified in XADD must be greater than 0-0"
 
-var fullIDRe = regexp.MustCompile(`^(\d+)-(\d+)$`)
-
-func (s *Stream) validateFullID(id string) (*streamID, string) {
-	match := fullIDRe.FindStringSubmatch(id)
-	if match == nil {
-		return nil, invalidIDFormatStr
+func (s *Stream) validateID(id string) (*streamID, string) {
+	if match := partialIDRe.FindStringSubmatch(id); match != nil {
+		return s.validatePartialID(match[1])
 	}
-	millisecondsTime, err := strconv.Atoi(match[1])
+	if match := fullIDRe.FindStringSubmatch(id); match != nil {
+		return s.validateFullID(match[1], match[2])
+	}
+	return nil, invalidIDFormatStr
+}
+
+func (s *Stream) validatePartialID(millisecondsTimeStr string) (*streamID, string) {
+	millisecondsTime, err := strconv.Atoi(millisecondsTimeStr)
 	if err != nil {
 		return nil, invalidIDFormatStr
 	}
-	sequenceNumber, err := strconv.Atoi(match[2])
+	if millisecondsTime < 0 {
+		return nil, invalidIDNotGreaterThanZero
+	}
+	if millisecondsTime < s.topID.millisecondsTime {
+		return nil, invalidIDNotGreaterThanTopItem
+	}
+	if millisecondsTime == s.topID.millisecondsTime {
+		return NewStreamID(millisecondsTime, s.topID.sequenceNumber+1), ""
+	}
+	sequenceNumber := 0
+	if millisecondsTime == 0 {
+		sequenceNumber = 1
+	}
+	return NewStreamID(millisecondsTime, sequenceNumber), ""
+}
+
+func (s *Stream) validateFullID(millisecondsTimeStr string, sequenceNumberStr string) (*streamID, string) {
+	millisecondsTime, err := strconv.Atoi(millisecondsTimeStr)
+	if err != nil {
+		return nil, invalidIDFormatStr
+	}
+	sequenceNumber, err := strconv.Atoi(sequenceNumberStr)
 	if err != nil {
 		return nil, invalidIDFormatStr
 	}
 
 	if millisecondsTime < 0 || sequenceNumber < 0 || (millisecondsTime == 0 && sequenceNumber == 0) {
-		return nil, "ERR The ID specified in XADD must be greater than 0-0"
+		return nil, invalidIDNotGreaterThanZero
 	}
 
 	if (millisecondsTime < s.topID.millisecondsTime) ||
 		(millisecondsTime == s.topID.millisecondsTime && sequenceNumber <= s.topID.sequenceNumber) {
-		return nil, "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+		return nil, invalidIDNotGreaterThanTopItem
 	}
 
 	return NewStreamID(millisecondsTime, sequenceNumber), ""
