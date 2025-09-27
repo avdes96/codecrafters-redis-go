@@ -29,9 +29,9 @@ func (x *Xadd) Handle(args []string, ctx *event.Context, writeChan chan []byte) 
 		writeChan <- protocol.ToError("WRONGTYPE entry at key is not a stream")
 		return
 	}
-	streamID, errMsg := stream.Add(id, field, value)
-	if errMsg != "" {
-		writeChan <- protocol.ToError(errMsg)
+	streamID, err := stream.Add(id, field, value)
+	if err != nil {
+		writeChan <- protocol.ToError(err.Error())
 		return
 	}
 	writeChan <- protocol.ToBulkString(streamID.String())

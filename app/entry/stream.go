@@ -1,6 +1,7 @@
 package entry
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -66,10 +67,10 @@ func NewStream() *Stream {
 	}
 }
 
-func (s *Stream) Add(idStr string, field string, value string) (*streamID, string) {
-	id, errMsg := s.validateID(idStr)
-	if errMsg != "" {
-		return nil, errMsg
+func (s *Stream) Add(idStr string, field string, value string) (*streamID, error) {
+	id, err := s.validateID(idStr)
+	if err != nil {
+		return nil, err
 	}
 	s.lock.Lock()
 	new := newStreamItem(id)
@@ -78,7 +79,7 @@ func (s *Stream) Add(idStr string, field string, value string) (*streamID, strin
 	s.lock.Unlock()
 
 	s.data.Get(new).(*StreamItem).AddField(field, value)
-	return new.id, ""
+	return new.id, nil
 }
 
 func NewStreamID(m int, sn int) *streamID {
@@ -95,9 +96,9 @@ const invalidIDFormatStr string = "ERR id not in format <millisecondsTime>-<sequ
 const invalidIDNotGreaterThanTopItem string = "ERR The ID specified in XADD is equal or smaller than the target stream top item"
 const invalidIDNotGreaterThanZero string = "ERR The ID specified in XADD must be greater than 0-0"
 
-func (s *Stream) validateID(id string) (*streamID, string) {
+func (s *Stream) validateID(id string) (*streamID, error) {
 	if id == "*" {
-		return s.generateID(), ""
+		return s.generateID(), nil
 	}
 	if match := partialIDRe.FindStringSubmatch(id); match != nil {
 		return s.validatePartialID(match[1])
@@ -105,7 +106,7 @@ func (s *Stream) validateID(id string) (*streamID, string) {
 	if match := fullIDRe.FindStringSubmatch(id); match != nil {
 		return s.validateFullID(match[1], match[2])
 	}
-	return nil, invalidIDFormatStr
+	return nil, errors.New(invalidIDFormatStr)
 }
 
 func (s *Stream) generateID() *streamID {
@@ -120,45 +121,45 @@ func (s *Stream) generateID() *streamID {
 	return NewStreamID(millisecondsTime, sequenceNumber)
 }
 
-func (s *Stream) validatePartialID(millisecondsTimeStr string) (*streamID, string) {
+func (s *Stream) validatePartialID(millisecondsTimeStr string) (*streamID, error) {
 	millisecondsTime, err := strconv.Atoi(millisecondsTimeStr)
 	if err != nil {
-		return nil, invalidIDFormatStr
+		return nil, errors.New(invalidIDFormatStr)
 	}
 	if millisecondsTime < 0 {
-		return nil, invalidIDNotGreaterThanZero
+		return nil, errors.New(invalidIDNotGreaterThanZero)
 	}
 	if millisecondsTime < s.topID.millisecondsTime {
-		return nil, invalidIDNotGreaterThanTopItem
+		return nil, errors.New(invalidIDNotGreaterThanTopItem)
 	}
 	if millisecondsTime == s.topID.millisecondsTime {
-		return NewStreamID(millisecondsTime, s.topID.sequenceNumber+1), ""
+		return NewStreamID(millisecondsTime, s.topID.sequenceNumber+1), nil
 	}
 	sequenceNumber := 0
 	if millisecondsTime == 0 {
 		sequenceNumber = 1
 	}
-	return NewStreamID(millisecondsTime, sequenceNumber), ""
+	return NewStreamID(millisecondsTime, sequenceNumber), nil
 }
 
-func (s *Stream) validateFullID(millisecondsTimeStr string, sequenceNumberStr string) (*streamID, string) {
+func (s *Stream) validateFullID(millisecondsTimeStr string, sequenceNumberStr string) (*streamID, error) {
 	millisecondsTime, err := strconv.Atoi(millisecondsTimeStr)
 	if err != nil {
-		return nil, invalidIDFormatStr
+		return nil, errors.New(invalidIDFormatStr)
 	}
 	sequenceNumber, err := strconv.Atoi(sequenceNumberStr)
 	if err != nil {
-		return nil, invalidIDFormatStr
+		return nil, errors.New(invalidIDFormatStr)
 	}
 
 	if millisecondsTime < 0 || sequenceNumber < 0 || (millisecondsTime == 0 && sequenceNumber == 0) {
-		return nil, invalidIDNotGreaterThanZero
+		return nil, errors.New(invalidIDNotGreaterThanZero)
 	}
 
 	if (millisecondsTime < s.topID.millisecondsTime) ||
 		(millisecondsTime == s.topID.millisecondsTime && sequenceNumber <= s.topID.sequenceNumber) {
-		return nil, invalidIDNotGreaterThanTopItem
+		return nil, errors.New(invalidIDNotGreaterThanTopItem)
 	}
 
-	return NewStreamID(millisecondsTime, sequenceNumber), ""
+	return NewStreamID(millisecondsTime, sequenceNumber), nil
 }
