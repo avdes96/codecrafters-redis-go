@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/google/btree"
 )
@@ -90,11 +91,14 @@ func NewStreamID(m int, sn int) *streamID {
 var fullIDRe = regexp.MustCompile(`^(\d+)-(\d+)$`)
 var partialIDRe = regexp.MustCompile(`^(\d+)-\*$`)
 
-const invalidIDFormatStr string = "ERR id not in format <millisecondsTime>-<sequenceNumber>"
+const invalidIDFormatStr string = "ERR id not in format <millisecondsTime>-<sequenceNumber|*> | *"
 const invalidIDNotGreaterThanTopItem string = "ERR The ID specified in XADD is equal or smaller than the target stream top item"
 const invalidIDNotGreaterThanZero string = "ERR The ID specified in XADD must be greater than 0-0"
 
 func (s *Stream) validateID(id string) (*streamID, string) {
+	if id == "*" {
+		return s.generateID(), ""
+	}
 	if match := partialIDRe.FindStringSubmatch(id); match != nil {
 		return s.validatePartialID(match[1])
 	}
@@ -102,6 +106,18 @@ func (s *Stream) validateID(id string) (*streamID, string) {
 		return s.validateFullID(match[1], match[2])
 	}
 	return nil, invalidIDFormatStr
+}
+
+func (s *Stream) generateID() *streamID {
+	millisecondsTime := int(time.Now().UnixMilli())
+	if millisecondsTime == s.topID.millisecondsTime {
+		return NewStreamID(millisecondsTime, s.topID.sequenceNumber+1)
+	}
+	sequenceNumber := 0
+	if millisecondsTime == 0 { // In edge case it is zero
+		sequenceNumber = 1
+	}
+	return NewStreamID(millisecondsTime, sequenceNumber)
 }
 
 func (s *Stream) validatePartialID(millisecondsTimeStr string) (*streamID, string) {
