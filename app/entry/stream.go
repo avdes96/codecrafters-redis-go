@@ -251,6 +251,9 @@ func (s *Stream) createStartStreamID(startStr string) (*streamID, error) {
 }
 
 func (s *Stream) createEndStreamID(endStr string) (*streamID, error) {
+	if endStr == "+" {
+		return s.topID, nil
+	}
 	match := fullIDRe.FindStringSubmatch(endStr)
 	if match != nil {
 		millisecondsTime, sequenceNum, err := validateIDFormat(match[1], match[2])
