@@ -21,9 +21,14 @@ func (id *streamID) String() string {
 	return fmt.Sprintf("%d-%d", id.millisecondsTime, id.sequenceNumber)
 }
 
+func (id *streamID) isZero() bool {
+	return id.millisecondsTime == 0 && id.sequenceNumber == 0
+}
+
 type Stream struct {
 	data                          *btree.BTree
 	dataLock                      sync.RWMutex
+	bottomID                      *streamID
 	topID                         *streamID
 	highSequenceNumberPerTime     map[int]int
 	highSequenceNumberPerTimeLock sync.RWMutex
@@ -68,11 +73,9 @@ func (si *StreamItem) AddField(field string, value string) *StreamItem {
 
 func NewStream() *Stream {
 	return &Stream{
-		data: btree.New(32),
-		topID: &streamID{
-			millisecondsTime: 0,
-			sequenceNumber:   0,
-		},
+		data:                      btree.New(32),
+		topID:                     &streamID{millisecondsTime: 0, sequenceNumber: 0},
+		bottomID:                  &streamID{millisecondsTime: 0, sequenceNumber: 0},
 		highSequenceNumberPerTime: make(map[int]int),
 	}
 }
@@ -84,6 +87,9 @@ func (s *Stream) Add(idStr string, field string, value string) (*streamID, error
 	}
 	s.dataLock.Lock()
 	new := newStreamItem(id).AddField(field, value)
+	if s.bottomID.isZero() {
+		s.bottomID = id
+	}
 	s.topID = id
 	s.data.ReplaceOrInsert(new)
 	s.highSequenceNumberPerTimeLock.Lock()
@@ -202,6 +208,9 @@ func validateIDFormat(millisecondsTimeStr string, sequenceNumberStr string) (int
 }
 
 func (s *Stream) GetDataFromRange(startStr string, endStr string) (StreamRangeData, error) {
+	if s.data.Len() == 0 {
+		return StreamRangeData{}, nil
+	}
 	startID, err := s.createStartStreamID(startStr)
 	if err != nil {
 		return nil, err
@@ -224,6 +233,9 @@ func (s *Stream) GetDataFromRange(startStr string, endStr string) (StreamRangeDa
 }
 
 func (s *Stream) createStartStreamID(startStr string) (*streamID, error) {
+	if startStr == "-" {
+		return s.bottomID, nil
+	}
 	match := fullIDRe.FindStringSubmatch(startStr)
 	if match != nil {
 		millisecondsTime, sequenceNum, err := validateIDFormat(match[1], match[2])
